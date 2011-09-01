@@ -1,0 +1,207 @@
+WPF Notes
+----------
+
+http://karlshifflett.wordpress.com/xaml-power-toys/
+http://windowsclient.net/wpf/wpf35/wpf-35sp1-xaml-powertoys.aspx
+http://msdn.microsoft.com/en-us/library/ms752347.aspx#Y8319
+http://marlongrech.wordpress.com/2008/11/22/icollectionview-explained/
+http://www.wpftutorial.net/DataGrid.html
+http://social.msdn.microsoft.com/forums/en-US/wpf/thread/634fe346-9ff9-448e-bbca-bba2ffa8740c/
+http://www.wpfreakystyley.com/
+http://appfx.codeplex.com/
+
+http://www.hanselman.com/blog/ShouldIUseHTML5OrSilverlightOneMansOpinion.aspx
+
+MVP Pattern
+------------
+
+- View is defined as an interface that the Presenter will use for getting and 
+setting data to and from the Model.
+- The View implementation will instantiate the Presenter object & provide a 
+reference to itself. 
+- When the events of the View are triggered, they will do nothing but invoke a 
+method of the Presenter which has no parameters and no return value.
+- The Presenter will then get the data from View, thru the view interface 
+variable that the Presenter stored when the constructor was called.
+- The Presenter will then invoke methods of the Model, and sets the data from 
+the Model into the View thru the View interface.
+
+The model - this is the application logic which will be housed in controller 	
+			classes.
+
+The view - which is an interface which abstracts the UI. All data send and 		
+			retrieved from the UI is done thru this interface.
+
+The presenter - this is a mediator that negotiates how the UI and application 	
+				logic interact. 
+
+Presenter wire up
+	The  key concepts of this wire up are:
+
+    * presenter has a constructor accepting parameter of view interface type
+    * view implements the view interface
+    * view in page load constructs a presenter instance and throw himself to the 
+presenter
+    * presenter has a pointer then to the view, but the pointer type is view 
+interface so presenter is not knowing nothing about the UI specific aspects 
+of the view he's been injected
+    * view keeps created instance of the pointer in the page field to support 
+presenter method invocation in case of specific UI events
+	* All the business logic of controlling,presenting and updating model and 
+interaction with view should be encapsulated in the presenter. 
+
+Property Elements: XAML provides an alternative to for setting complex 
+properties values: property elements. 
+
+	<Button> 
+		<Button.Content> 
+			<Rectangle Height="40" Width="40" Fill="Black"/> 
+		<Button.Content> 
+	</Button>
+
+The Content property is of type Object. So it can be easily set to a 40 x 40 
+Rectangle object. The Content property is set with XML element instead of 
+attributes. When the property appears as an element, it must take the form of 
+object name, followed by a dot and then the property name, as in the case of 
+Button.Content.
+
+The period in Button.Content is what distinguishes property elements from object 
+elements. They take the form of TypeName.PropertyName, they are always contained 
+inside a TypeName object element, and can never have attributes of their own.
+
+Markup Extensions: 
+
+	Whenever an attribute value is enclosed in {} braces, the XAML compiler 
+	treats it as a markup extension value rather than a literal string.
+
+	Height = "{x:Static SystemParameters.IconHeight}" <--constructor arguments 
+	Content = "{Binding Path=Height, RelativeSource={RelativeSource Self}}"
+
+	The first identifier in each set of curly braces is the name of the markup 
+	extension class. In this example, NullExtension, x:Null, and StaticExtension 
+	as in x:Static are classes in the System.Windows.Markup namespace, so the x 
+	prefx must be used to locate them.
+
+	If a markup extension supports it, comma-delimited parameters can be 
+	specified. Positional parameters, such as SystemParameters.IconHeight, are 
+	treated as string arguments for the extension class's appropriate 
+	constructor. 
+	Named parameters, Path, RelativeSource, enable you to set matching names in 
+	the constructed extension object. The values of these properties can be 
+	markup extensions themselves, as in the case of RelativeSource or literal 
+	values that can undergo type conversions.
+
+	Here the NullExtension, enables the background brush to be set to null. 
+	StaticExtension class enables use of static properties, fields, constants, 
+	enumerations rather than hard-coding literals. In this case, the Button's 
+	height is set to the operating system's current height settings for icons. 
+	Binding, enables, Content to be set to the same value as the Height 
+	property.
+
+Children of Object Elements:
+	
+	An object element can have 3 types of children - a value for Content 
+property, collection items or a value that can be type-converted to its parent.
+
+Dependency Properties:
+	
+	- Are public static properties with property suffix.
+	- Are usually created by calling the static DependencyProperty.Register 
+	method.
+	- Overloads of Register method allow passing Callback, coercing values and 
+	validating values.
+	
+	Change Notification:
+	Whenever the value of a dependency property changes, WPF can automatically 
+	trigger a number of actions depending on the property's metadata. One of the 
+	change notifications is "property triggers" which enables you to perform 
+	custom actions without writing any code.
+
+
+Attached Properties:
+	
+	In WPF, the parent is responsible for placement of each control. In the 
+	following case, the Canvas layout requires each control to have an explicit 
+	location set. As such the Canvas layout handles this information and figures 
+	what to do with it.
+
+		<Button Canvas.Left="40" Canvas.Top=40" Content="Test"/>
+	
+	As such XAML, allows properties that belong to the parent to be defined on 
+the 
+	Child as "attached properties". In case of a Canvas, the Top, Left, Right, 
+	Bottom properties, refer to the distance from the particular edge.
+
+
+StackPanel:
+	
+	In the direction of stacking, the controls take up minimum space but in 
+other 
+	direction, the control is stretched to take up maximum available space. You 
+	can change the behavior by setting some properties on the control.
+
+The default behavior for Controls is that, if you don't specify a size then the 
+controls will be sized to their Content.
+
+FlowDocument:
+	
+	You can use a FlowDocument to insert arbitary text with formatting as in an 
+	HTML page. It has to be placed inside a container like FlowDocumentReader, 
+	which is a rich container that provides search, paging and zoom controls.
+
+	All the content inside a FlowDocument has to be in some sort of container, 
+	such as a Paragraph or a List. There is also support for Table, Sections, etc.
+
+
+Resource Dictionaries:
+
+	A resource dictionary is just an XML file that contains a ResourceDictionary 
+	element. You can also create merged dictionaries that combine contents of	
+	multiple dictionaries into one.
+
+		<Window.Resources>
+			<ResourceDictionary>
+				<ResourceDictionary.MergedDictionaries>
+					<ResourceDictionary Source="Dictionary1.xaml"/>
+					<ResourceDictionary Source="Dictionary2.xaml"/>
+				</ResourceDictionary.MergedDictionaries>
+			</ResourceDictionary>
+	</Window.Resources>=======
+	such as a Paragraph or a List. There is also support for Table, Sections
+	
+Commands:
+---------
+
+	The command architecture consists of the following components:
+	
+	•  A command source object triggers the execution of the command. Command 
+		sources are usually UI input elements such as Buttons or input gestures. 
+	•  The command object represents an action to be performed, including the 
+	conditions under which the action should be enabled, and the list of input 
+	gestures that represent the command. It doesn’t, however, actually contain the 
+	code to execute the action! 
+	•  The command target is the object acted on by the command. 
+	•  The command binding connects the command with the target. It also binds the 
+	following code to the command architecture: 
+		-  The handler code that should be invoked when the command is invoked 
+		-  The code that determines whether the command can be invoked 
+
+	To plugin custom logic, you need to add a CommandBinding to the element that will 
+	execute the command or any parent element thanks to bubbling behavior of routed commands. 
+	All classes deriving from UIElement & ContentElement, containg a CommandBindings collection 
+	that can hold one or more CommandBinding objects.
+	
+		this.CommandBindings.Add(new CommandBinding(ApplicationCommands.Help, HelpExecuted, HelpCanExecute));
+	
+	This assumes that methods HelpExecuted and HelpCanExecute have been defined.
+	
+		<Window.InputBindings>
+			<KeyBinding Command="Help" Key="F2"/>
+			<KeyBinding Command="NotACommand" Key="F1"/>
+		</Window.InputBindings>
+		<Window.CommandBindings>
+			<CommandBindings Command="Help" CanExecute="HelpCanExecute" Executed="HelpExecute"
+		</Window.CommandBindings>
+	
+		<Button Command="Help" Content="{Binding RelativeSource={RelativeSource.Self}, Path=Command.Text}"/>
+	

@@ -1,0 +1,49 @@
+Using GIT
+---------
+
+Git Links
+---------
+
+http://www.lostechies.com/blogs/jason_meridth/archive/2009/06/01/git-for-windows-developers-git-series-part-1.aspx
+
+http://chrisjean.com/2009/11/12/great-tutorial-on-merging-with-git/
+
+ I have the following section in my .gitconfig file:
+[alias]
+st = status
+di = diff
+co = checkout
+ci = commit
+br = branch
+sta = stash
+
+In the prompt, type “git init”:
+Then issue "git add ."
+
+I just turned my folder into a git repository.  Really that easy?
+Yep.  Notice the folder mentioned in the response to the command.  The
+.git folder.  For the subversion users who are reading: Remember how
+you’d have a .svn folder under every directory of your repository?
+Not with git.  You only have the one .git folder.  If you delete that,
+you’re folder is no longer a git repository.  Yes, it’s that easy.
+
+Also, notice the “(master)” on the end of our prompt.  That is a nice
+feature of msysgit.  It is telling me what git branch I’m are
+currently in.
+
+$ git add test.pl
+$ git ci -m ‘initial import’
+Created initial commit 219c5b3: initial import
+1 files changed, 6 insertions(+), 0 deletions(-)
+create mode 100644 test.pl
+
+At this point, we want to create a branch so we can refactor this mess without ruining the working code.
+
+$ git co -b refactor
+Switched to a new branch “refactor”
+
+Now that we’re on the refactor branch, let’s sequester the print statement into a subroutine.
+
+And commit:
+
+$ git ci -a -m ‘factor print into a subroutine’;

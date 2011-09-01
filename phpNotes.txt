@@ -1,0 +1,99 @@
+PHP Notes
+=========
+
+Static Properties & Methods:
+
+A static property or methodis sometimes referred to as a class property or class method
+in the sense that it belongs to the whole class and not to an individual instance of the class
+(or object).
+
+  public static $lbToKg = 0.45359237;
+  
+The $lbToKg static property can now be accessed in any part of a script using the class
+name and the scope resolution operator like this:
+  
+  Ch2_Product::$lbToKg
+  
+
+In fact, the value of a static property can change as the result of internal calculations 
+inside the class, as demonstrated by the following example:
+
+  class classC
+  {
+    protected static $_counter = 0;
+    public $num;
+    
+    public function __construct()
+    {
+      self::$_counter++;
+      $this->num = self::$_counter; //Access a static property
+    }
+  }
+  
+  $object1 = new classC();
+  echo $object1->num . '<br />';
+  $object2 = new classC();
+  echo $object2->num;
+  
+   public static function convertLbToKg($pounds)
+  {
+    return $pounds * 0.4535923;
+  }
+
+To use this static function inside the class where it is defined or any of its descendent
+classes, use self like this:
+
+  $weight = self::convertLbToKg(5); // $weight is 2.2679615
+
+To use it elsewhere, use the class name instead of self like this:
+  
+  $weight = Ch2_Product::convertLbToKg(5); // $weight is 2.2679615
+
+
+Constants: 
+
+The normal way to define a constant in PHP is with define() like this:
+  
+  define('MILES_TO_KILOMETERS', 1.609344);
+
+When you use define(), PHP creates a globalconstant. 
+
+You declare a class constant in a similar way to assigning a value to a variable (except without the dollar sign) and precede the declaration with the const
+keyword.
+
+
+  class Ch2_Product
+  {
+    // properties defined here
+    protected $_type;
+    protected $_title;
+    const POUNDS_TO_KILOGRAMS = 0.45359237;
+    // rest of class omitted
+  }
+
+
+Defined inside the class like this, the POUNDS_TO_KILOGRAMS constant becomes available to
+the Ch2_Product class and all classes derived from it. However, to use it anywhere inside
+the class hierarchy, you need to prefix it with the self keyword and the scope resolution
+operator like this:
+  
+  self::POUNDS_TO_KILOGRAMS 
+ 
+ 
+Accessingmethods automatically:
+
+The __call() magic method is used to call methods that don’t exist in the current class.
+The __call() magic method takes two arguments: the method name and an array of argu-ments to be passed to the method. You pass these in turn to call_user_func_array() and return the result.   
+ 
+The code for the __call() magic method is always the same. The only thing that you need to change is the name of the property (highlighted in bold in the following script) that contains the object whose methods you want to call automatically. Taking the example of an object stored by aggregation in a protected property called $_manufacturer, this is how you would define the __call() magic method:
+
+  public function __call($method, $arguments)
+  {
+    // check that the other object has the specified method
+    if (method_exists($this->_manufacturer, $method)) {
+      // invoke the method and return any result
+      return call_user_func_array(array($this->_manufacturer, $method), $arguments);
+    }
+  }
+ 
+ 

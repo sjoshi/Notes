@@ -1,0 +1,221 @@
+Python Tips
+==========
+
+Django:
+	http://forums.iis.net/t/1122937.aspx
+	http://www.bardiak.com/2010/12/installing-django-on-iis-7-using.html
+	
+	You can add new Python CGI Script Map in IIS 7 management UI from:
+	"Features View" -> "Handler Mappings"
+
+	Here are the steps how I make Python running in IIS 7. Hope it helps:
+
+	1. Please make sure Python is installed properly.
+
+	2. Make sure CGI module is installed in IIS 7 
+
+	Control Panel -> Programs -> Program and Features -> Turn Windows features on and off -> Internet Information Services -> World Wide Web Services -> Application Development Features -> CGI module.
+
+	3. Add web application for Python, In IIS Manager, right click Default Web Site -> Add Application, setting Alias e.g.: PythonApp, and make it pointing to some folder like C:\PythonApp, then click OK
+
+	4. In Features View, open Handler Mappings, right click to Add Script Map ...
+
+	5. In Request path, put "*.py" as the script files extension, In Executable select "C:\Python25\Python.exe %s %s", here is my Python installation path and its parameters, this is mentioned in the KB article, you can check what are these two parameters used for. Then giving the script mapping an appropriate Name, like Python. Click OK.
+
+	6. I was getting that error until I updated the mapping. initially i had just the python executable in the executable field, in fact you need an additional parameter:
+
+		You're mapping should look like
+
+		•Request Path: *.py
+		•Executable: C:\Python27\python.exe -u "%s"
+		•Name: python
+		Then my script worked:
+
+		print "Status: 200 OK"
+		print "Content-Type: text/plain;charset=utf-8"
+		print
+		print "Hello World!"
+
+	7. In Browse View, right click browse to verify it.
+
+	Exceptions:
+		try:
+			#Some statements
+		except (KeyError) as error:
+			print("Error found %s" % error)
+	
+	The first two items returned by this call have reasonable string displays when printed directly, 
+	and the third is a traceback object that can be processed with the standard traceback module.
+	
+	When you create custom exceptions, it is important to assign a tuple containing the arguments to the 
+	__init__() to the attribute, self.args. This is used when printing exceptions traceback messages.
+	
+	class DeviceError(Exception):
+		def __init__(self, erno, mesg):
+			self.args = (errno, mesg)
+			self.errno = errno
+			self.errmesg = mesg
+
+	To find the specific type of error that was raised, examine the type of the execution 
+	value with type() function.
+	
+	try:
+		error1()
+	except NetworkError as e:
+		if type(e) is HostnameError:
+		# Perform special actions for this kind of error
+	
+	>>> import traceback, sys
+	>>> def grail(x):
+			raise TypeError('already got one')
+
+	>>> try:
+			grail('arthur')
+		except:
+			exc_info = sys.exc_info()
+			print(exc_info[0])
+			print(exc_info[1])
+			traceback.print_tb(exc_info[2])
+			
+	<class 'TypeError'>
+	already got one
+	  File "<stdin>", line 2, in <module>
+	  File "<stdin>", line 2, in grail
+	  
+The traceback module can also format messages as strings and route them to specific file objects; 
+see the Python library manual for more details.
+
+OOP:
+	As a first alternative, notice that we have introduced some redundancy in code
+	since the raise calculation is now repeated in two places (in the two classes). 
+	We could also have implemented the customized Manager class by augmenting 
+	the inherited raise method instead of replacing it completely:
+
+	class Manager(Person):
+		def giveRaise(self, percent, bonus=0.1):
+			Person.giveRaise(self, percent + bonus)
+
+The trick here is to call back the superclass’s version of the method
+directly, passing in the self argument explicitly. We still redefine the 
+method, but we simply run the general version after adding 10 percent 
+(by default) to the passed-in percentage. This coding pattern can help reduce 
+code redundancy (the original raise method’s logic appears in only one place and
+so is easier to change) and is especially handy for kicking off superclass 
+constructor methods in practice.
+	
+If you’ve already studied Python OOP, you know that this coding scheme works 
+because we can always call methods through either an instance or the class name.
+In general, the following are equivalent, and both forms may be used explicitly:
+
+	instance.method(arg1, arg2)
+	class.method(instance, arg1, arg2)
+	
+IDisposable:
+	You can use the contextlib module which allows custom context managers
+	to be more easily implemented by placing a wrapper around a generator function.
+	
+	from contextlib import contextmanager
+	@contextmanager
+	def ListTransaction(theList):
+		workingCopy = list(theList)
+		yield workingCopy
+		#Modify the original only if there are no errors
+		theList[:] = workingCopy
+
+
+Advanced String Formatting:
+	A more advanced form of string formatting is available using the s.format(*args,
+*kwargs) method on strings.
+This method collects an arbitrary collection of positional and keyword arguments and substitutes their values into placeholders embedded in s. A placeholder of the form '{n}', where n is a number, gets replaced by positional argument n supplied to format(). A placeholder of the form '{name}' gets replaced by keyword argument name supplied to format. Use '{{' to output a single '{' and '}}'
+to output a single '}'.
+
+
+Generators :
+	If a function uses the yield keyword, it defines an object known as generator.
+	A generator is a function that produces a sequence of values for use in iteration.
+	
+	def countdown(n):
+		print("Counting down from {}".format(n))
+		while n > 0:
+			yield n
+			n -= 1
+		return
+
+	>>>c = countdown(5)  #Returns a generator object
+	>>>c.next() #Use c.__next__() in Python 3
+		Counting down from 5
+		5
+	The call to __next__() executes the statements until it reaches a yield statement. This then 
+	produces a result and the execution stops at this stage until the next() is invoked.
+	
+	You normally don't call next() manually but use it with the for statement or sum(), or some other
+	operation that consumes a sequence.
+	A generator function signals completion by returnin or raising StopIteration, at which point
+	iteratio stops. It is never legal for a generator to return a value other thatn None upon
+	completion.
+	
+	
+Couroutines:
+	Inside a fucntion the yeld statement can also be used as an expression that appears on the
+	right side of an assignment operator.
+	
+	def receiver():
+		print("Ready to receive")
+		while True:
+			n = (yield)
+			print("Got {}".format(n))
+
+	A funcion that uses yield in this manner is called a coroutines and it executes in response
+	to values being sent to it.
+	
+	>>r = receiver()
+	>>r.next()	#Advances to the first yield (r.__next__() in v3)
+	Ready to receive
+	>>r.send(1)
+	Got 1
+	
+	The initial call to next() is necessary so that the coroutine executes statements leading to the 
+	first yields expression. At this point, the coroutine suspends, waiting for a value to be sent 
+	to it using the send() method of the associated generator object r. 
+	The value passed to the send() is returned by the (yield) expression in the coroutine. Upon
+	receiving a value, a coroutine executes statements until the next yield statement is encountered.
+	
+	It is recommended to wrap a coroutine with a decorator that automatically takes care of calling
+	next() for the first time.
+	
+	def coroutine(func):
+		def start(*args, **kwargs):
+			g = func(*args, **kwargs)
+			g.next()
+			return g
+		return start
+	
+	Using this decorator, you can wite and use coroutines as:
+	
+	@coroutine
+	def receiver():
+		print("Ready to receive")
+		while Tru:
+			n= (yield)
+			print("Got {}".format(n))
+	
+	>>r = receiver()
+	>>r.send("Hello world")		#No initial next() reqd.
+	
+For any given class, the ordering of base classes can be viewed by printing its __mro__ attribute. 
+Here’s an example:
+
+	>>> MostEvilAccount.__mro__
+	(<class '__main__.MostEvilAccount'>, 
+	<class '__main__.EvilAccount'>,
+	<class '__main__.Account'>,
+	<class '__main__.DepositCharge'>,
+	<class '__main__.WithdrawCharge'>,
+	<type 'object'>)
+	>>>
+		
+	
+	
+	
+
+		

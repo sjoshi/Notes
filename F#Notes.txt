@@ -1,0 +1,1091 @@
+F# Tips
+=======
+
+The performance times are in milliseconds, to perform 50,000 operations
+on a dictionary with integer keys and values, on a 1.5 GHz PC. (
+
+In Big-O notation, retrieval time by key is:
+
+• O(1) for Hashtable, Dictionary, and OrderedDictionary
+• O(log n) for SortedDictionary and SortedList
+• O(n) for ListDictionary (and nondictionary types such as List<T>)
+
+O(n): If I double the input size the runtime doubles
+1 item: 1 second
+10 items: 10 seconds
+100 items: 100 seconds
+
+O(n2): If the input size doubles the runtime quadruples
+1 item: 1 second
+10 items: 100 seconds
+100 items: 10000 seconds
+
+O(log n): If the input size doubles the runtime increases by one
+
+10 item: 1 sec
+100 items: 2 sec
+1000 items: 3secs
+
+O(2n): If the input size increases by one, the runtime doubles
+
+Hadoop:
+http://www.ibm.com/developerworks/linux/library/l-hadoop-1/?ca=dnw-1120&ca=dth-lx
+
+TPL & STA - http://blogs.msdn.com/pfxteam/archive/2010/04/07/9990421.aspx
+
+Urls: http://lorgonblog.spaces.live.com/default.aspx
+  http://blogs.msdn.com/chrsmith/archive/2008/09/12/scripting-in-f.aspx
+  http://channel9.msdn.com/shows/Going+Deep/Brian-Beckman-Dont-fear-the-Monads/?CommentID=366551
+
+SynchronizationContext: http://www.codeproject.com/KB/cpp/SyncContextTutorial.aspx
+
+> #if INTERACTIVE
+#r @"D:\Sunit\CSharpFiles\Libs\Xunit\xunit.dll"
+#endif
+open Xunit;;
+
+Proxy: 129.135.251.220, 80
+
+http://fdatamining.blogspot.com/2010/03/matrix-and-linear-algebra-in-f-part-i-f.html
+
+Don Syme Blog
+-------------
+http://blogs.msdn.com/dsyme/
+
+  http://blogs.msdn.com/dsyme/archive/2010/02/15/async-and-parallel-design-patterns-in-f-part-3-agents.aspx
+http://blogs.msdn.com/dsyme/archive/2010/01/10/async-and-parallel-design-patterns-in-f-reporting-progress-with-events-plus-twitter-sample.aspx
+
+let reader =
+    seq { use reader = StreamReader(File.OpenRead("test.txt"))
+          while not reader.EndOfStream do
+              yield reader.ReadLine() }
+
+Tomas Petricek
+---------------
+
+There are actually two ways to specify the type you want to get. Brian posted how to do this by explicitly specifying the type parameter to a function:
+
+let res = Seq.cast<Match> v.Captures 
+
+The other option is to use type annotations which can be placed around
+any F# expression and specify the type of the expression - this way
+you can hint the compiler type inferrence (by saying that some
+expression has a particular type). If you provide the information in
+some clever way, the compiler will be able to figure out what the type
+parameter to Seq.cast should be.
+
+ A few examples:
+
+// By specifying type of the value 
+let (res:seq<Match>) = Seq.cast v.Captures  
+ 
+// By specifying return type of a function 
+let getCaptures () : seq<Match> =  
+  // ... 
+  Seq.cast v.Captures 
+ 
+// By specifying element type when iterating over the result 
+for (m:Match) in Seq.cast v.Captures do 
+  // ... 
+
+
+You cannot provide overloaded operators for existing types. One option
+is to use another operator name (as Natahan suggests). However, you
+can also define a new type to represent paths in your F# code and
+provide the / operator for this type:
+
+open System     
+ 
+// Simple type for representing paths 
+type Path(p) = 
+  // Returns the path as a string 
+  member x.Path = p  
+  // Combines two paths 
+  static member ( / )(p1:Path, p2:Path) =  
+    Path(IO.Path.Combine(p1.Path, p2.Path)) 
+ 
+let n = 4 / 2 
+let p = Path("C:\\") / Path("Temp") 
+
+This has one important benefit - by making the types more explicit,
+you give the type checker more information that it can use to verify
+your code. If you use strings to represent paths, then you can easily
+confuse path with some other string (e.g. name). If you define your
+Path type, the type-checker will prevent you from making this mistake.
+
+Moreover, the compiler won't allow you to (simply) combine paths
+incorrectly (which can easily happen if you represent paths as
+strings), because p + p is not defined (you can use only /, which
+correctly uses Path.Combine).
+
+
+Mailbox Processor
+-----------------
+
+The simplest usage pattern of workflow:
+    - receive a message 
+    - update some internal state
+    - Then react to the message.  
+
+In this case, reacting to the message means writing to the console,
+which probably is too simplistic to be of much use. However, you can
+find more realistic scenarios for this usage pattern. A good example
+of this would be using a mailbox to gather up a number of values, then
+marshal to the GUI thread so the values can be viewed.
+
+Async Workflows
+--------------
+
+If there's a particular thread with a SyncrhonizationContext, e.g. the
+UI thread, then you could do e.g.
+
+// earlier on the UI thread... 
+let syncCtxt = System.Threading.SynchronizationContext.Current  
+ 
+// then define t3 as 
+let t3 = async {  
+    do! Async.SwitchToGuiThread(syncCtxt) 
+    // now we're running on the UI thread until the next async 'bind' point 
+    return windowsProcess()  
+    } 
+
+but in general parallel tasks will start in the threadpool.
+
+   let! result = ReadAsync()
+
+Effectively means "on the current thread we are on prior to this line
+of code, that wi  kick off the read and schedule a callback to run the
+continuation of this workflow when the result arrives, and then
+release the current thread".  So 'let!' does a little work and then
+lets go of the thread.  Eventually something will call back, and so a
+(probably) new thread will run the continuation.  You can see this
+happening by printing out the value of
+System.Threading.Thread.CurrentThread.ManagedThreadId before and after
+a 'let!'.  In sum, this releases a thread and gets a (probably) new
+thread back, but while the long-running IO operation is pending, no
+thread is blocked, leaving that thread free to do other work rather
+than blocked and waiting.
+
+Task Parallel Library: Allows multiple units of work to run
+efficiently on multiple cores, including relatively simple scenarios
+such as spawning multiple threads to do similar computations in
+parallel as well as more complicated operations where the computations
+themselves also end up spawning additional tasks. Uses the improved
+.NET 4.0 threadpool and work stealing queues to ensure that all cores
+are kept busy.
+
+Async workflows: Allows asynchronous computations to run without
+occupying unneeded threads, initiating callbacks when results are
+available.
+
+PLINQ: Code written using PLINQ ends up running via the TPL, but this
+is a nicer interface for code which is easily expressed using LINQ
+queries (e.g. doing a single operation on each item in an array of
+data in parallel).
+
+Note that async workflows can be converted to Tasks using the
+StartAsTask method, and Tasks can be converted to Asyncs using the
+Async.AwaitTask method, so it's possible to bridge the technologies,
+although they do aim at slightly different target scenarios.
+
+To me, the rule of thumb would be that if you're actively doing lots
+of computation on different threads, you'll want to use the TPL
+(possibly via PLINQ or an F# equivalent such as the PSeq module),
+whereas if you're trying to do lots of IO (whether parallel or not),
+you should use asynch workflows. So a raytracer would use TPL to kick
+off tasks to render each pixel (or scanline) in parallel, maximizing
+the available computing power on your computer. But downloading a
+bunch of webpages would be done with async workflows since there's not
+much computation to spread among cores; you just need to be notified
+by the OS when the results have come in.
+
+Robert Pickering
+----------------
+
+http://bfs.codeplex.com/SourceControl/changeset/view/44329#565236
+
+Web Service - http://strangelights.com/blog/archive/2007/09/29.aspx
+http://stackoverflow.com/questions/1325740/f-async-web-request-handling-exceptions
+
+Talks: http://www.langnetsymposium.com/2009/speakers.aspx
+       http://www.fsug.org/PreviousSpeakers/tabid/66/Default.aspx
+
+Because .NET methods behave as if they take tuples as arguments, you
+can also treat a method that has more than one argument as a
+value. Here you see how to apply the File.WriteAllBytes to a list of
+tuples; the tuples contain the file path (a string) and the desired
+file contents (an array of bytes):
+ 
+open System.IO 
+ 
+// list of files names and desired contents 
+let files2 = [ "test1.bin", [| 0uy |]; 
+               "test2.bin", [| 1uy |]; 
+               "test3.bin", [| 1uy; 2uy |]] 
+ 
+// iterator over the list of files creating each one 
+List.iter File.WriteAllBytes files2 
+
+When using .NET methods with lots of arguments, it can sometimes be
+helpful to know the names of the arguments to help you keep track of
+what each argument is doing. F# lets you use named arguments, where
+you give the name of the argument, an equals sign, and then the value
+of the argument. The following example demonstrates this with an
+overload of File.Open() that takes four arguments:
+ 
+open System.IO 
+ 
+// open a file using named arguments 
+let file = File.Open(path = "test.txt",  mode = FileMode.Append, 
+    	   access = FileAccess.Write, share = FileShare.None) 
+ 
+// close it! 
+file.Close() 
+
+Delegates:- 
+
+F# functions will automatically be converted to .NET delegate objects
+if their signatures match.
+
+To keep methods as flexible as possible, you might prefer not to
+specify a type parameter when you import methods that take generic
+delegates or when you create a wrapper F# function around constructors
+for a non-F# library. You achieve this by using the underscore (_) in
+place of the type parameter, as in the first line of the next example
+(the following example uses the forward operator, |>, which I explain
+in the “The |> Operator” section):
+
+Both async primitives work by using the Func<_,_> type,
+which is a way to create function values, except that it works using
+delegates. 
+
+type System.IO.Directory with
+    /// Retrieve all files under a path asynchronously
+    static member AsyncGetFiles(path : string, searchPattern : string) =
+        let dele = new Func<string * string, string[]>(Directory.GetFiles)
+        Async.FromBeginEnd((path, searchPattern), dele.BeginInvoke,
+            dele.EndInvoke)
+
+type System.IO.File with
+    /// Copy a file asynchronously
+    static member AsyncCopy(source : string, dest : string) =
+        let dele = new Func<string * string, unit>(File.Copy)
+        Async.FromBeginEnd((source, dest), dele.BeginInvoke, dele.EndInvoke)
+
+open System 
+// How to wrap a method that take a delegate with an F# function 
+let findIndex f arr = Array.FindIndex(arr, new Predicate<_>(f)) 
+ 
+// define an array literal 
+let rhyme = [| "The"; "cat"; "sat"; "on"; "the"; "mat" |] 
+ 
+// print index of the first word ending in 'at' 
+printfn "First word ending in 'at' in the array: %i" 
+    (rhyme |> findIndex (fun w -> w.EndsWith("at"))) 
+ 
+// define an event handler 
+    let stuff _ _ = MessageBox.Show("This is \"Doing Stuff\"") |> ignore 
+    let stuffHandler = new EventHandler(stuff) 
+ 
+    // define a button and the event handler 
+    let event = new Button(Text = "Do Stuff", Left = 8, Top = 40, Width = 80) 
+    event.Click.AddHandler(stuffHandler
+
+
+F# doesn't automatically lift operators for nullable or option types, so the easiest way to start is to write something like this:
+
+
+> let lift op a b =
+   match a, b with
+   | Some(av), Some(bv) -> Some(op av bv)
+   | _, _ -> None;;
+
+val lift : ('a -> 'b -> 'c) -> 'a option -> 'b option -> 'c option
+
+> let (+?) a b = lift (+) a b
+  let (-?) a b = lift (-) a b;;
+
+val ( +? ) : int option -> int option -> int option
+val ( -? ) : int option -> int option -> int option
+
+> (Some 10) +? (Some 32);;
+val it : int option = Some 42
+> (Some 10) -? None;;
+val it : int option = None
+
+
+SQL Server
+----------
+Steps to connect with Library from SQL Server:
+
+1. By default t SQL server is NOT CLR enabled. To add any assembly to the database, sql server should be made CLR enabled. Run the following.
+
+execute sp_configure 'clr enabled',1
+
+2. For adding this library the permission set should be unsafe. For any unsafe assembly to be added to database the database should be made trustworthy. Initial instance of all databases are not trustworthy.
+
+ALTER DATABASE PERFOPTIMA SET TRUSTWORTHY ON
+
+3. Create the assembly on your database.
+
+CREATE ASSEMBLY Finan
+FROM 'c:\Financial.dll'
+WITH PERMISSION_SET=UNSAFE
+
+
+4. Add library function aliases to the databases. Match the parameters of the library to related parameters of the sql server.
+
+CREATE FUNCTION AliasXYZ (
+@parameterAname as parameterAtype,
+@parameterBname as parameterBtype,
+.
+)
+RETURNS float AS
+EXTERNAL NAME
+Finan.SYSTEM.NUMERIC.FINANCIAL.XYZ
+
+
+5. Using the alias function:
+select AliasXYZ(value1, value2, .....)
+
+
+OSTips
+------
+
+Moving the Windows Kernel into Memory:-
+Anything that runs in system memory runs faster than if it runs from your hard disk. To that end, you can speed up Windows itself by moving the Windows kernel into RAM, by executing this Registry tweak:
+
+
+Open the Registry Editor.
+Navigate to the HKEY_LOCAL_MACHINE\SYSTEM\
+CurrentControlSet\Control\Session Manager\Memory Management key.
+Right-click the DisablePagingExecutive item and select Modify.
+In the Edit DWORD dialog box, change the value to 1.
+Click OK.
+You must reboot your system for this tweak to take effect.
+
+Caution: If you experience system problems after performing this tweak, re-edit the value of DisablePagingExecutive back to 0.
+
+Disabling Low Disk Checking:-
+Windows constantly checks to see whether there's enough free space on your hard drive. If there isn't, it displays a low disk space warning. The problem is, all this disk space checking uses a number of system resources, and you probably know if your disk space is low, anyway.
+
+You can speed up your PC by turning off this low disk space checking. Here's how to do it:
+
+
+Open the Registry Editor.
+Navigate to the HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Policies key.
+If the Explorer key exists, select it. If not, right-click in the rightmost pane and select New, Key. Name this new key Explorer, and then select it.
+Right-click in the rightmost pane and select New, DWORD (32-bit) Value.
+Name the new DWORD NoLowDiskSpaceChecks.
+Right-click the new NoLowDiskSpaceChecks item and select Modify.
+In the Edit DWORD dialog box, change the value to 1.
+Click OK.
+Note: A DWORD is a special type of data value used for some Registry entries.
+
+Function types:-
+
+	// f : int -> string -> unit
+	let f x s =
+			printfn "%d %s" x s
+
+	// g : int * string -> unit
+	let g(x,s) =
+    printfn "%d %s" x s
+
+A "curried" function is called by separating its arguments by whitespace, whereas a "tupled" function is called with a comma-separated list of values enclosed in parentheses.
+
+In general, "A -> R" names the type of a function that takes an argument of type A and returns a value of type R.  So g's type tells us that it takes an int-string 2-tuple and returns unit.
+
+So what of f?  It's type was "int -> string -> unit".  The arrow "->" is right associative, which means that this type can be interpreted as "int -> (string -> unit)".  And so if for the moment I define "A" to
+be "int" and "R" to be "string -> unit", we can see that f is a function that takes and A and returns an R - that is, f is a function that takes an "int" and returns a "function which takes a string and
+returns unit".  This becomes more apparent if I add parentheses to f's call site:
+
+	(f 3) "foo" // prints 3 "foo"
+
+Function application associates to the left, which means that this call to f means the same thing as the previous one.  Thus we can interpret this code as calling a one-argument function f, that takes an int and returns a new one-argument function: one that takes a string and returns unit.
+
+To make this even more apparent:
+
+	// fp : string -> unit
+	let fp = f 4
+	fp "bar"     // prints 4 "bar"
+
+Here I have applied f to just one argument and named this new result "fp".  It has the expected type - a function that takes a string and returns unit.  The technique of calling a function with fewer
+arguments than it expects (resulting in a new function that expects the rest of the arguments) is called "partial application".  We say that "fp" is a partial application of "f", it has already taken the
+int, but is still "waiting" to take the string.  This is the essence of the "curried" form of functions; partial application can be done simply by omitting trailing arguments.
+
+F#Hub (http://cs.hubfs.net/)
+-------------------------------
+
+In F# you can disallow Equals & GetHashCode (and remove them from intellisense) by annotating the type with the NoEquality and NoComparison attributes, as shown below.  User-defined methods can also be hidden from the intellisense list via the Obsolete attribute or the CompilerMessage attribute with IsHidden=true.  There is no way to hide the System.Object methods GetType and ToString from the F# intellisense.
+
+[<NoEquality; NoComparison>]
+type Foo() =
+    member x.Bar() = ()
+    member x.Qux() = ()
+    [<System.Obsolete>]
+    member x.HideMe() = ()
+    [<CompilerMessage("A warning message",99999,IsError=false,IsHidden=true)>]
+    member x.WarnMe() = ()
+
+let foo = new Foo()
+foo
+
+This will pick the first explicitly defined value higher than the value passed in (or throw if there is none):
+let succ (e:'en when 'en:enum<'a>) : 'en =
+  System.Enum.GetValues(typeof<'en>) :?> 'en[]
+  |> Array.find (fun e' -> e' > e)
+  |> unbox
+
+let (|StringMatches|_|) (mytarget : string) (mystring : string)  =
+    if (mystring.Contains(mytarget)) then Some(true) else None
+
+We can use this active pattern as follows:
+
+let stringContains str target =
+    match str with
+    | StringMatches target result -> printfn "%s contains %s" str target
+    | _ -> printfn "Substring not found"
+
+Here again, I' like to emphasize the somewhat confusing placement and binding of active pattern arguments. In this example, the test-expression str serves as input to the StringMatches active pattern. The match's test-expression always binds to the last (right-most) parameter in the the active pattern. This means that in
+this example, str binds to the active pattern's mystring argument. In addition, the target argument from the match expression binds to the mytarget argument in the active pattern, and the result variable binds to the active pattern's Some/None return value.
+
+Chris Smith Blog
+-----------------
+http://blogs.msdn.com/chrsmith/default.aspx?p=4
+http://blogs.msdn.com/chrsmith/archive/2008/09/22/f-scripting-zen-word-interop.aspx
+http://blogs.msdn.com/chrsmith/archive/2008/02/22/regular-expressions-via-active-patterns.aspx
+
+I think the best option here is to use the F# reflection API, you could do a test using the function: Reflection.FSharpType.IsUnion and the get the union cases and check if there's a some and a none.
+
+        ///Determines if a given value is an option. None is interpreted as null
+        let isOption x =
+            match box x with
+            | null -> false
+            | _ ->
+                match FSharpType.IsUnion <| x.GetType() with
+                | true ->
+                    FSharpType.GetUnionCases <| x.GetType()
+                        |> Seq.exists (fun t->t.Name="Some" || t.Name="None")
+                | _ -> false
+        ///Gets the value of an option. The value is returned if the type is not an option
+        let optionValue x =
+            match isOption x with
+            | true ->
+                let _,v = FSharpValue.GetUnionFields(x,x.GetType())
+                v.[0]
+            | _ -> x
+
+Naming is correct. A single-case Active Pattern can be thought of as a function call, simply taking one value and returning another. The benfit to using an Active Pattern instead, is that unlike function calls Active Patterns can be used directly in pattern matching. Whereas to match on the result of an arbitrary function call, you need to add a 'when' guard to the pattern match.
+
+let (|IsAllCaps|)  (x:string) = (x = x.ToUpper())
+let (|IsAllLower|) (x:string) = (x = x.ToLower())
+
+let testActivePatterns x =
+    match x with
+    | IsAllCaps  true -> printfn "%s is in all caps" x
+    | IsAllLower true -> printfn "%s is in all lower" x
+
+// Using Function Calls
+let isAllCapsFunc  (x:string) = (x = x.ToUpper())
+let isAllLowerFunc (x:string) = (x = x.ToLower())
+
+
+let testFunctionCalls x =
+    match x with
+    | _ when isAllCapsFunc  x = true -> printfn "%s is in all caps" x
+    | _ when isAllLowerFunc x = true -> printfn "%s is in all lower"
+
+
+
+let sequence_expression =
+    seq {
+        let lastStep = ref (0, 1)
+        for i in 1 .. 20 do
+            let x, y = !lastStep
+            yield x + y
+            do lastStep := (x + y, x)
+    }
+
+open System
+open System.IO
+
+// Gets all files under a given folder
+let rec filesUnderFolder rootFolder =
+    seq {
+        for file in Directory.GetFiles(rootFolder) do
+            yield file
+        for dir in Directory.GetDirectories(rootFolder) do
+            yield! filesUnderFolder dir }
+
+//Function Composition
+// Gets the information about a file
+let fileInfo filename = new FileInfo(filename)
+
+// Gets the file size from a FileInfo object
+let fileSize (fileinfo : FileInfo) = fileinfo.Length
+
+// Converts a byte count to MB
+let bytesToMB (bytes : Int64) = bytes / (1024L * 1024L)
+let (|EndsWith|_|) extension (file : string) =
+    if file.EndsWith(extension)
+    then Some()
+    else None
+
+//Old way
+let photosInMB_reusable baseFolder =
+    baseFolder
+    |> filesUnderFolder
+    |> Seq.map fileInfo
+    |> Seq.map fileSize
+    |> Seq.fold (+) 0L
+    |> bytesToMB
+
+//We didn't need to declare a parameter and pass that to our function
+chain. Instead we rely on a partial application of (>>). We can now rewrite our original //directory //crawler using function composition:
+
+// Using the Function-Composition operator (>>)
+let getFolderSize =
+    filesUnderFolder
+    >> Seq.map fileInfo
+    >> Seq.map fileSize
+    >> Seq.fold (+) 0L
+    >> bytesToMB
+
+let photosInMB_funccomp = getFolderSize @"C:\Users\chrsmith\Pictures\
+
+/// Shell executing a program
+open System.Diagnostics
+
+let shellExecute program args =
+    let startInfo = new ProcessStartInfo()
+    startInfo.FileName <- program
+    startInfo.Arguments <- args
+    startInfo.UseShellExecute <- true
+
+    let proc = Process.Start(startInfo)
+    proc.WaitForExit()
+    ()
+
+
+open System
+
+allFilesUnder Environment.CurrentDirectory
+|> Seq.filter (function
+            | EndsWith ".fs" _
+            | EndsWith ".fsi" _
+                -> true
+            | _ -> false)
+|> Seq.iter (shellExecute "Notepad.exe")
+
+
+---------------------------------------
+
+/// Spawns a new process. Returns (exit code, stdout)
+let shellExecute executablePath workingDir args =
+
+    let startInfo = new ProcessStartInfo()
+    startInfo.FileName         <- executablePath
+    startInfo.WorkingDirectory <- workingDir
+    startInfo.Arguments        <- args
+    startInfo.UseShellExecute        <- false
+    startInfo.CreateNoWindow         <- true
+    startInfo.RedirectStandardOutput <- true
+
+    let proc = Process.Start(startInfo)
+    proc.WaitForExit()
+
+    (proc.ExitCode, proc.StandardOutput.ReadToEnd())
+
+ let message =
+  {
+      MsgType  = MessageType.Parse(m.Groups.[1].Value)
+      MsgID    = (let id = Regex.Match(m.Groups.[2].Value, ".*(FS\d\d\d\d).*")
+                  if id.Success then id.Groups.[1].Value
+                  else          "FS0191")
+
+      MsgRange = MessageRange.Parse(m.Groups.[2].Value)
+      MsgText  = removeTokens (m.Groups.[2].Value)
+  }
+
+
+
+Real World F#
+--------------
+
+type Schedule =
+   | Never                               #A
+   | Once of DateTime                    #B
+   | Repeatedly of DateTime * TimeSpan   #C
+
+#A Unscheduled event with no arguments
+#B Event with single occurrence
+#C Repeated event with first occurrence and periodicity
+
+If we would now like to reschedule the events, say move all events we know by a day, then writing this explicitly would be difficult since we have to code for each type of schedule.
+However if you think, the only code is to calculate a new DateTime base on original time without affecting any other property  of the schedule.
+
+So we implement a function to do this exactly:
+
+	> let mapSchedule f sch =
+		match sch with
+			|Never ->Never
+			|Once(dt) -> Once(f(dt))
+			|Repeatedly(dt,s) -> Repeatedly(f(dt),s)
+	;;
+
+	val mapSchedule : (DateTime -> DateTime) -> Schedule -> Schedule
+
+If you look at the type signature, you can see that the first parameter is a function
+that takes  DateTime as an argument and returns a new  DateTime. This is used for
+calculating the new time of scheduled events. The original Schedule is the last parameter.
+
+	> for s in schedules do
+			let ns = s |> mapSchedule (fun d ->d.AddDays(7.0))
+			printfn "%A" ns
+	;;
+	Never
+	Once 1/8/2008 12:00:00 AM
+	Repeatedly (1/8/2008 12:00:00 AM,7.00:00:00)
+	val it : unit = ()
+
+However, the previous code can be simplified by using pipelining and partial function application like this:
+
+	let newSchedules = schedules |> List.map (mapSchedule (fun d -> d.AddDays(7.0)))
+
+When we specify just the first argument (a function for calculating the date) to the mapSchedule function, we get a function of type  Schedule -> Schedule. This is exactly what the List.map operation expects as the first argument, so we don't have to write lambda function explicitly. This example shows another reason why many higher order functions take the original value as the last argument. That way we can use both pipelining and partial application when processing a list of values.
+
+
+Option.map:
+
+	> Option.map;;
+	val it : (('a -> 'b) -> 'a option -> 'b option) = (...)
+
+I said that map operations usually apply a given function to values carried by the data
+type and wrap the result in the same structure. For the option type, this means that when
+the value is Some, the function given as the first argument ('a -> 'b) will be applied to a
+value carried by the second argument ('a option) and the result of type  'b will be
+wrapped inside an option type,  so the overall result has type  'b option. When the
+original option type doesn't carry a value, the map function will simply return None.
+We can use this function instead of the nested match. When reading the second input,
+we want to 'map' the carried value to a new value by adding the first number:
+
+	match (readInput()) with
+	| None        -> None
+	| Some(first) -> readInput() |> Option.map (fun second -> first + second
+
+On the second line we already have a value from the first number entered by the user.
+We then use  readInput() to read the second option value from the console. Using
+Option.map, we project the value into a new option value, which is then returned as the
+result. The lambda function used as an argument adds the first value to a number carried by
+the option value (if there is one).
+
+let deflate (rc:Rect, ws, hs) =
+  {Left = rc.Top + ws; Top=rc.Left + hs; Width=rc.Width - (2.0f * ws); Height = rc.Height - (2.0f * hs)};;
+
+let toRectangleF(rc:Rect) =
+  RectangleF(rc.Left, rc.Top, rc.Width, rc.Height);;
+
+type Rect =
+  {Left: float32;
+   Top: float32;
+   Width: float32;
+   Height: float32;}
+
+type TextContent =
+  {Text: string;
+   Font: Font;}
+
+type ScreenElement =
+ | TextElement of TextContent * Rect
+ | ImageElement of string * Rect
+
+let fntHead = Font("Arial", 12.0f);;
+let fntText = new Font("Arial", 12.0f);;
+
+let drawElements elements (gr:Graphics) =
+  for p in elements do
+    match p with
+      |TextElement (te,rc) ->
+        let rcf = RectangleF(rc.Left, rc.Top, rc.Width, rc.Height)
+        gr.DrawString(te.Text, te.Font, Brushes.Black, rcf)
+      |ImageElement (img,rc) ->
+        let bmp = new Bitmap(img)
+        let wsp, hsp = rc.Width /10.0f, rc.Height/10.0f
+        let rc = toRectangleF(deflate(rc,wsp,hsp))
+        gr.DrawImage(bmp, rc)
+
+
+let drawImage (w:int, h:int) space f =
+  let bmp = new Bitmap(w,h)
+  let gr = Graphics.FromImage(bmp)
+  let rc = Rectangle(Point(0,0), Size(w,h))
+  gr.FillRectangle(Brushes.White, rc)
+  gr.TranslateTransform(space, space)
+  f(gr)
+  gr.Dispose()
+  bmp;;
+
+type Orientation =
+  |Vertical
+  |Horizontal
+
+type DocumentPart =
+  |SplitPart of Orientation * list<DocumentPart>
+  |TitledPart of TextContent * DocumentPart
+  |TextPart of TextContent
+  |ImagePart of string
+
+
+<titled title=\"Functional Programming in .NET\" font=\"Times New Roman\" size=\"18\" style=\"bold\">
+   <split orientation=\"vertical\"><text>In this book, we'll introduce you to Functional Programming</text>
+      <image url=\"C:\Tomas\Writing\Functional\Petricek.jpg\" />
+   </split>
+</titled>
+
+
+#r "System.Xml.Linq";;
+open System.Xml.Linq;;
+
+#r "System.Core.dll";;
+open System.Linq;;
+
+let attr(node:XElement, name, def) =
+  let at = node.Attribute(XName.Get(name))
+  if (at<>null) then at.Value else def
+;;
+
+> attr(xmlDoc.Elements().ElementAt(0), "orientation", "None");;
+val it : string = "vertical"
+> attr(xmlDoc, "title", "None");;
+val it : string = "Functional Programming in .NET"
+
+
+type Client = {Name:string; Income:int; YearsInJob:int; UsesCreditCard:bool; CriminalRecord:bool};;
+let sam = {Name="Sam King"; Income=40000; YearsInJob=1; UsesCreditCard=true; CriminalRecord=false};;
+
+let test =
+  [(fun cl->cl.CriminalRecord = true); (fun cl->cl.Income < 30000)];;
+
+let testClient(cl:Client) =
+  let issues = test |> List.filter (fun f->f(cl))
+  let suitable = issues.Length <=1
+  printfn "Client: %s\nOffer a loan: %s (issues = %d)" cl.Name (if (suitable) then "YES" else "NO") issues.Length;;
+
+type ClientTest =
+  {Check: Client -> bool;
+   Report: Client -> unit;}
+
+let checkCriminal(cl) = cl.CriminalRecord=true;;
+let reportCriminal(cl) =
+  printfn "Checking 'criminal record' of %s 'failed'" cl.Name;;
+
+let checkIncome(cl) = cl.Income <= 30000;;
+let reportIncome(cl) =
+  printfn "Checking 'income' of %s 'failed'
+ %s" cl.Name "less than 30000";;
+
+let testWithReports=
+  [{Check=checkCriminal; Report=reportCriminal}; {Check=checkIncome; Report=reportIncome};{Check=checkJobYears; Report=reportJob}];;
+
+let testClient(client) =
+  let issues = testWithReports |> List.filter (fun tr->tr.Check(client))
+  let suitable = issues.Length <=1
+  for i in issues do
+    i.Report(client)
+  printfn "Offer loan: %s" (if (suitable) then "YES" else "NO")
+;;
+
+
+Composed Behavior:
+
+type ClientTest = {Test: Client->bool; Report: Client->unit};;
+
+let lessThanTest f min property =
+  let report cl =
+    printfn "Checking '%s' of '%s' failed (less than %d)!" property cl.Name min
+  {Test = (fun cl-> f(cl) < min) ; Report=report}
+;;
+
+let tests = [(lessThanTest (fun cl->cl.Income) 30000 "income") ;(lessThanTest (fun cl->cl.YearsInJob) 2 "years")];;
+
+let testClient(cl:Client) =
+  let issues = tests |> List.filter (fun f->f.Test(cl))
+  let suitable= issues.Length <= 1
+  for i in issues do
+    i.Report(cl)
+  printfn "Client: %s Offer a loan: %s (issues = %d)" cl.Name (if (suitable) then "YES" else "NO") issues.Length;;
+
+Decision Trees:-
+
+The declaration order is the main reason for using let rec in this
+example, because we can start from the root node of the tree (#1),
+then create values for the two possible options on the second level
+(#2, #3) and finally declare one additional question for one case on
+the third level. We used let rec earlier for declaring recursive
+functions, which are functions that call themselves from their body
+(before they are declared). In general, F# also allows the declaration
+of recursive values, which can simplify many common tasks.
+
+type QueryInfo =
+  {Title: string;
+   Check: Client -> bool;
+   Positive: Decision;
+   Negative: Decision;}
+and Decision =
+  | Result of string
+  | Query of QueryInfo
+
+
+let rec tree =
+  Query({ Title="More than $40k"
+          Check=(fun cl->cl.Income > 40000)
+          Positive=moreThan40; Negative = lessThan40 })
+and moreThan40 =
+  Query({ Title="Has criminal record"
+          Check = (fun cl-> cl.CriminalRecord)
+          Positive=Result("NO"); Negative=Result("YES") })
+and lessThan40 =
+  Query ({  Title="Years in job"
+            Check = (fun cl->cl.YearsInJob > 1)
+            Positive=Result("YES"); Negative = usesCredit })
+and usesCredit =
+  Query({ Title="Uses credit card"
+          Check = (fun cl->cl.UsesCreditCard)
+          Positive=Result("YES"); Negative=Result("NO") })
+;;
+
+let rec testClientTree(client, tree) =
+  match tree with
+    |Result(msg) -> printfn " OFFER A LOAN: %s" msg
+    |Query(qi) ->
+      let s, case = if(qi.Check(client)) then "yes", qi.Positive else "no", qi.Negative
+      printfn " - %s? %s" qi.Title s
+      testClientTree(client, case)
+;;
+
+> testClientTree(sam, tree);;
+ - More than $40k? no
+ - Years in job? no
+ - Uses credit card? yes
+ OFFER A LOAN: YES
+val it : unit = ()
+
+Adding Members to Type:-
+
+> type Rect =
+  { Left:float32
+    Top:float32
+    Width:float32
+    Height:float32}
+
+	///Returns a new Rect
+  member x.Deflate(w, h) =
+    { Left = x.Left + w
+      Top = x.Top + h
+      Width = x.Width - (2.0f * w)
+      Height = x.Height - (2.0f *h)
+    }
+
+	///Returns a RectangleF
+  member x.toRectangleF() =
+    RectangleF(x.Left, x.Top, x.Width, x.Height)
+;;
+
+
+Implementing Interfaces:-
+
+type ClientTest =
+  abstract Check: Client -> bool
+  abstract Report: Client -> unit
+;;
+
+
+let testCriminal =
+  {
+    new ClientTests with
+      member x.Check(cl) = cl.CriminalRecord = true
+      member x.Report(cl) = printfn "%s has criminal record" cl.Name
+  }
+;;
+
+Also...
+
+type CoefficientTest(income, years, min) =
+  let coeff cl = (float(cl.Income) * income + float(cl.YearsInJob) * years)
+  let report cl = printfn "Coefficient %f is less than %f" (coeff cl) min
+  member x.PrintInfo() = printfn "income*%f + years*%f > %f" income years min
+  interface ClientTest with
+    member x.Report cl = report cl
+    member x.Test cl = (coeff cl) < min
+;;
+
+
+Implementing IEquality<string> :-
+
+ let equality =
+  let replace(s:string) = s.Replace(" ", "")
+  {
+    new IEqualityComparer<_> with
+      member x.Equals(a, b) = String.Equals(replace(a), replace(b))
+      member x.GetHashCode(s) = replace(s).GetHashCode()
+  };;
+
+let changeColor clr =
+  let orig = Console.ForegroundColor		#1
+  Console.ForegroundColor <- clr				#2
+  {
+    new IDisposable with								#3
+      member x.Dispose() = Console.ForegroundColor <- orig #4
+  };;
+
+> let hello() =
+     use clr = changeColor ConsoleColor.Red         #5
+     Console.WriteLine("Hello world!")
+     ;;                                             #6
+	val hello : unit -> unit
+	#1 Store the original color
+	#2 Set the new color immediately
+	#3 Create 'IDisposable' value
+	#4 Restore the original color inside 'Dispose'
+	#5 Color is changed to red
+	#6 Original color is restored
+
+Instead, we create an IDisposable value using an object expression (#3) and place the
+code that restores the original color in the Dispose method (#4).
+
+When the changeColor function is used the first part (which sets the new color) is
+executed immediately (#5). However, we store the result using the use keyword, so at the
+end of the function (#6) the Dispose method is called and the original color is restored.
+
+In both of languages, the object is disposed when the execution leaves
+the scope where the value sw is accessible. In F#, this happens at the
+end of the function by default, which is often what we need. However,
+when the function continues with some code that can run for a long
+time, it is better to make sure that the resource is disposed
+earlier. We can either refactor the code that uses the resource into a
+separate function, or we can specify the scope explicitly like this:
+
+let test() =
+   ( use sw = new StreamWriter(..)
+     foo(sw) )
+   // some more code
+
+The syntax may be somewhat surprising, but it becomes clear once we realize that in F#
+every block of code is an expression. In the  code above, we're just specifying the way in
+which the expression is constructed in the same way as when we write  (1 + 2) * 3
+instead of the default 1 + (2 * 3). This way we can limit the scope of the sw value to
+the expression inside parentheses.
+
+Classes :-
+
+Constructors that accept arguments are flexible relative to how these arguments work. First, the arguments of the primary constructor are in scope throughout the entire class declaration. This means that you can use the arguments passed into the primary constructor anywhere in the class. This also means that you do not need to store the arguments - you can treat them as implicit private fields.
+
+Second, by default, constructor arguments bind to their input by position, left to right; however, in F#, constructor arguments are implicitly named, making it easy for callers to access them directly and/or out of order, as in this next example:
+
+type Movie(title: string, boxOfficeSales: decimal) =
+
+    let netSales = boxOfficeSales * 0.90m   // these numbers are made up
+
+    do printfn
+        "%s grossed %f at the box office, for net sales of %f for the studio"
+
+        title boxOfficeSales netSales
+
+
+
+let m = new Movie(boxOfficeSales=100000000m, title="Jaws")
+
+When dealing with optional arguments, you often want to provide default values, in case the caller chooses to skip passing values into the function or method. To do this, you can use the function defaultArg. The defaultArg function takes the optional parameter as the first argument and the default value as the second. In the following example, the ticketPrice parameter is optional, and has a default value of 10.00.
+
+type Movie(title: string, ?ticketPrice: float) =
+    let ticketPrice = defaultArg ticketPrice 10.00
+    do printfn "Welcome to %s. Your ticket costs $%f" title ticketPrice
+
+
+Caching results with memoization:-
+
+	> let addSimple(a, b) =
+		printfn "Adding %d + %d" a b
+		a + b
+	;;
+
+	val addSimple : int * int -> int
+
+	> addSimple(5,4);;
+	Adding 5 + 4
+	val it : int = 9
+	> let add =
+		let cache = new Dictionary<_,_>()
+		printfn "Cache id %s" cache.GetHashCode()
+		(fun x ->													//Here x is a tuple (a,b)
+			match cache.TryGetValue(x) with
+				|true, v -> v
+				|_ ->
+					let v = addSimple(x)	//Invokes addSimple(a,b)
+					cache.Add(x, v)				//Stores in Dict with key as (a,b) and result v
+					v)										//Returns result v
+	;;
+
+let docGDP = Async.RunSynchronously(GetGDPIndicator(ind, 1, period));;
+
+val docGDP : XDocument list =
+  [<wb:data xmlns:wb="http://www.worldbank.org" page="1" pages="3" per_page="100" total="227">
+  <wb:data>
+    <wb:indicator id="NY.GDP.MKTP.KD.ZG">GDP growth (annual %)</wb:indicator>
+    <wb:country id="AW">Aruba</wb:country>
+    <wb:value></wb:value>
+    <wb:date>2008</wb:date>
+  </wb:data>
+  <wb:data>
+    <wb:indicator id="NY.GDP.MKTP.KD.ZG">GDP growth (annual %)</wb:indicator>
+    <wb:country id="AD">Andorra</wb:country>
+    <wb:value></wb:value>
+    <wb:date>2008</wb:date>
+  </wb:data>
+</wb:data>]
+
+
+let doc = Async.RunSynchronously(Async.Parallel(downloadAll))
+
+
+
+Stackoverflow:
+--------------
+
+type Line =
+    | Whitespace = 0
+    | Comment = 1
+    | Code = 2
+    
+let Classify (l:string) =         
+    let s = l.TrimStart([|' ';'\t'|])
+    match s with        
+    | "" | "{" | "}" -> Line.Whitespace
+    | _ when s.StartsWith("#") -> Line.Whitespace
+    | _ when s.StartsWith("//") -> Line.Comment
+    | _ -> Line.Code
+    
+let Loc (arr:list<_>) =     
+    let sums = Array.create 3 0
+    arr 
+    |> List.iter (fun line -> 
+        let i = Classify line |> int
+        sums.[i] <- sums.[i] + 1)
+    sums
+    
+"Classify" as a separate entity might be useful in another context.
+
+
+Array.Fold:
+
+let trsJoined = trs.Split([|"\n"|], System.StringSplitOptions.RemoveEmptyEntries) |> Array.map (fun e-> e.Trim()) |> Array.fold (fun acc el -> (acc + el + ",")) "";;
+
+let jtsMain = @"http://jts.ingrppo.com/report.asp?ProductGroup=1&JTSNo={0} &view=executive&voEdit=ON&voChildren=ON";;
+
+let jtsUrl = System.Uri.EscapeUriString(System.String.Format(jtsMain, trsJoined));;
+
+open System.Diagnostics;;
+
+Process.Start(jtsUrl);;
+

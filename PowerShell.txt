@@ -1,0 +1,456 @@
+PowerShell
+==========
+
+LINKS:-
+http://support.microsoft.com/kb/968929
+
+http://dougfinke.com/blog/index.php/2009/09/02/how-to-host-powershell-in-a-wpf-application/
+http://technet.microsoft.com/en-us/edge/powershell-discussions-with-the-architect-part-3.aspx
+http://technet.microsoft.com/en-us/library/ee692803.aspx
+
+To change the current execution-policy use:
+Note: this command must be run elevated (Start Powershell using ‘Run as Administrator’)
+
+PS C:\Windows\System32> Set-Executionpolicy -ExecutionPolicy Unrestricted
+
+File Associations:
+
+You can look up the file type and file association for known extensions by   using 
+the ASSOC and FTYPE commands. To find the association, type cmd /c assoc followed by the 
+file extension that includes the period. The output of the ASSOC command is the file type. 
+So if you type cmd /c ftype association (where association is the output of the ASSOC command), 
+you’ll see the file type mapping. 
+For example, if you type cmd /c assoc.exe to see the file associations for .exe executables, you 
+then type cmd /c ftype exefile to see the file type mapping. 
+	
+	C:\Users\sjoshi>ftype txtfile
+		txtfile=%SystemRoot%\system32\NOTEPAD.EXE %1
+
+You’ll see the file association is set to
+	exefile="%1" %*
+
+File associations and types are maintained in the Windows registry and can be set using the ASSOC and FTYPE commands, respectively. To create the file association, 
+type cmd /c assoc followed by the extension setting, such as cmd /c assoc .pl=perlfile. 
+
+To create the file type, set the file type mapping, including how to use parameters supplied with the command name, such as 
+	cmd /c ftype perlfile=C:\Perl\Bin\Perl.exe “%1” %*. 
+
+
+You can recognize cmdlets by their name format -- a verb and noun separated by a dash (-), such as 
+Get-Help, Get-Process, and Start-Service.
+
+For example, the "get" cmdlets only retrieve data, the "set" cmdlets only establish or change data, 
+the "format" cmdlets only format data, and the "out" cmdlets only direct the output to a specified destination. 
+
+Each cmdlet has a help file that you can access by typing:
+
+		get-help <cmdlet-name> -detailed
+
+To find the values of all of the properties of a particular object, use a pipeline operator (|) 
+to send the results of a "get" command to a Format-List or Format-Table command. Use the 
+Property parameter of the format cmdlets with a value of all (*). 
+	
+For example, to find all of the properties of the Schedule service on the system, type:
+
+		get-service schedule | format-list -property *
+
+Help about concepts in Windows PowerShell begins with "about_". To display help about a 
+Windows PowerShell concept, type "get-help" followed by the concept name. 
+	
+	For example, to get help about wildcards, type:
+		
+		get-help about_wildcard
+
+Alias:
+To set a new alias
+  
+    Set-Alias log Write-Host
+
+To check for an alias
+  
+  cd alias:
+  dir lo*
+ 
+ Or
+  get-alias log
+
+  Test-Path alias:\log
+  True
+
+To remove an alias
+  
+   Remove-Item "alias:\log"
+
+Or
+    cd alias:
+    del log
+
+Finding an Invalid Alias:
+
+  Set-Alias wrong-alias something-completely-broken
+  Get-Command (Get-Alias wrong-alias).Definition  #This fails
+
+
+   Get-Alias | where {!(Get-Command $_.Definition -ErrorAction SilentlyContinue)} | 
+    %{ $wa = "alias:\$($_.Name)"; return 0} | %{rm $wa}
+    
+   PS C:\Users\sjoshi> dir *.sql | Select-String -List FROM | ft filename, linenumber -AutoSize
+
+    Filename       LineNumber
+    --------       ----------
+    dwgOracle.sql           2
+    smp4Prasad.sql          3
+    tableSpace.sql          1
+
+
+
+Regular Expressions:
+
+  $env:path -imatch "core\\runtime"
+  "www.yahoo.com" -match "(www\.)?\w+\.(com|org|net)"
+
+What if we want to test if the file is hidden or system? We can use –or:
+  
+  $file.Attributes -like "*Hidden*" -or $file.Attributes -like "*System*"
+  True
+
+This is too wordy. We can use a regular expression with an alternation pattern to test both 
+things at the same time. We have to switch to the –match operator:
+  
+  $file.Attributes -match "Hidden|System"
+  True
+  
+-replace takes a regular expression and internally calls Regex.Replace(). Be careful when 
+providing the replace pattern, and escape regular expression special characters if needed. The 
+preceding example might not work as expected if we use –replace:
+  
+  "one.test, two!test" -replace ".test", "-->DONE"
+  one-->DONE, two-->DONE  
+
+Veriable Interpolation:
+
+We can use some really complex variable expressions inside strings, but we have to be 
+careful and obey the formatting rules. Variable parsing stops at the end of the first word, and to 
+use an expression, we have to put it inside a $() block:
+
+PS C:\> $processes = (Get-Process)
+PS C:\> "$($processes.Count) processes running in the system."
+60 processes running in the system.
+
+PS C:\Users\sjoshi> "$((Get-Process).Count) processes"
+85 processes
+
+Formatting:
+
+PS C:\Users\sjoshi> "{0:#.#}" -f ((Get-Item D:\pagefile.sys -Force).Length / 1GB)
+4.2
+
+Get-ChildItem D:\Sunit\CSharpFiles\INGR\CopyAnnotation\bin\Debug\*.dll | ForEach-Object {"{0}-{1}" -f $_.Name, 
+$_.GetType()}
+
+Interop.StdType.dll-System.IO.FileInfo
+RAD2D.dll-System.IO.FileInfo
+
+(Get-Command D:\Sunit\CSharpFiles\INGR\CopyAnnotation\bin\Debug\RAD2D.dll).FileVersionInfo | fl
+
+Get-ChildItem D:\Sunit\CSharpFiles\INGR\CopyAnnotation\bin\Debug\*.dll | 
+orEach-Object {"{0}" -f $_.VersionInfo | fl}
+
+Built-in Cmdlets:
+
+  Group-Object
+    Splits the objects into group according to a property. The result is a collection of 
+	GroupInfo objects. We can get each of them and query it for the actual objects that belong to the 
+	group by accessing the GroupInfo Group property:   
+    
+      dir | Group-Object -Property Extension | Where-Object {$_.Count -ge 2}
+      (Get-Service | Group-Object Status)[1].Group
+      Get-Service | Sort-Object status, name | Format-Table -GroupBy status
+      
+  Select-Object
+     Get-Process | Sort-Object WS -Descending| select -first 4
+
+Invoke from Cmd.exe
+  
+  Here, the quotation marks indicate a string, and the ampersand (&) is an invoke operator 
+  that causes the command to be executed. After you write a string that runs a command, you will generally be able to run the command at either the command prompt or the PowerShell prompt. For example, even though you cannot enter power  shell -command {get-service; get-process} at the command prompt, you can enter the following at a command prompt:
+  
+  powershell –command "& {get-service; get-process}"
+
+Script Blocks:
+  $greeter = {
+          param ($fn, $ln)
+          Write-Host "Hello, $fn $ln"
+          }
+		
+PS C:\Users\sjoshi> &$greeter "Sunit" "Joshi"
+Hello, Sunit Joshi
+
+ You need to know that powershell.exe actually does not support getting script names at the command line. 
+ What it really does is accumulate all its parameters and treat them as script code. 
+ PowerShell treats .\hello as a different command and complains that it cannot find it. 
+ We have to use some trickery to get around this: we have to wrap the script name in quotes and 
+ use the execute operator, &, to run the script:
+ 
+  >powershell.exe "& '.\hello world.ps1'"
+  Hello, world!
+
+Client code call those to do the real job. Here is a sample library script, Library1.ps1:
+
+  function LibHello()
+  {
+      Write-Host "LibHello2"
+  }
+
+Write-Host "Library1.ps1 script included"
+
+Here is how we import the library from a script, Lib-User-DotSource.ps1, and call its 
+LibHello function:
+
+  . .\Library1.ps1
+  LibHello
+
+Keep in mind that the space between the initial dot and the script name is important; you will get 
+an error if you omit it. Here is the output:
+
+  PS> .\Lib-User-DotSource.ps1
+  Library1.ps1 script included
+  LibHello2
+
+The Join-Path invocation and the dot-source operation after it still feel too verbose. To 
+make the library script inclusion shorter, we can create another function, Get-LibraryPath, as 
+that will allow us to use more concise syntax for including script libraries. This is how that func-
+tion looks and how we can use it to rewrite the Lib-User.ps1 script:
+
+  function Get-ScriptDirectory
+  {
+      $invocation = $script:MyInvocation
+      Split-Path $invocation.MyCommand.Path
+  }
+  function Get-LibraryPath($relativePath)
+  {
+      $dir = Get-ScriptDirectory
+      return Join-Path $dir $relativePath
+  }
+  . (Get-LibraryPath "Library1.ps1")
+  LibHello
+
+Scope:
+
+Scoping gets even more interesting when pipelines are involved. Blocks in the same pipe-
+line share a single scope. Here is a pipeline that contains two blocks passed to cmdlets applied
+at a different point in the pipeline. The second block sees variables declared in the first one:
+
+  dir *.sql | %{$file = $_.Name; $Lst = $_.LastWriteTime; return 3} | % {"Got $file - $Lst"}
+
+  $null = [Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms")
+  $form = New-Object Windows.Forms.Form
+  $form.Size = New-Object Drawing.Size -arg 300, 85
+  $textBox = New-Object Windows.Forms.TextBox
+  $textBox.Dock = "Fill"
+  $form.Controls.Add($textBox)
+  $button = New-Object Windows.Forms.Button
+  $button.Text = "Done"
+  $button.Dock = "Bottom"
+    
+  $button.add_Click(
+      { $global:resultText = $textBox.Text; $form.Close() })
+  $form.Controls.Add($button)
+  [void] $form.ShowDialog()
+  Write-Host $global:resultText
+
+Filter keyword:
+    
+Most often, when dealing with pipeline input, we will need to define only a process section. 
+For example, we can filter a collection of processes and display only the ones started less than 
+five minutes ago. To do that, we define a Get-RecentlyStarted function that returns the current 
+pipeline object from its process section if its StartTime property is less than five minutes ago:
+
+  function Get-RecProc 
+  {
+      process {
+          $start = $_.StartTime
+          if($start) {
+              $now = [datetime]::Now
+              $diff = $now - $start
+              if($diff.TotalMinutes -lt 5) {
+                  return $_
+                 }
+             }
+  }
+        
+        
+The pipeline function mode is often used to filter a collection, and that has led to implementing 
+a shorthand notation that helps in defining filter functions. We can do that using the filter keyword. 
+Let’s now rewrite the previous example as 
+  
+  filter Get-RecProc 
+  {      
+        $start = $_.StartTime
+        if($start) 
+        {
+            $now = [datetime]::Now
+            $diff = $now - $start
+            if($diff.TotalMinutes -lt 5) 
+            {
+                return $_
+            }
+        }
+   }
+  
+ And here is the hidden process section that each filter has:
+ 
+  (Get-Command Get-RecProc -type Filter).ScriptBlock
+  
+  Get-Command Even-Function -CommandType Function
+
+Environment: 
+  You can work with Windows environment variables by using $env. If you want to view the current settings 
+  for the PATH environment variable, you type $env:path. If you want to add a directory to this variable, 
+  you can use the following syntax: 
+  
+  $env:path += ";C:\Scripts"
+    
+PowerShell Drives:-
+
+	Windows PowerShell includes drives that represent the HKEY_LOCAL_MACHINE 
+(HKLM:) and HKEY_CURRENT_USER (HKCU:) registry hives, the digital signature 
+certificate store on your computer (Cert:), and the functions in the current 
+session (Function:), among others. These are known as Windows PowerShell 
+drives.
+
+	There are a few features that make it easier to navigate in Windows 
+PowerShell:
+		: There are symbols for the current directory (.) and the contents of a 
+directory (*).
+		:There are built-in variables for your home directory, $home, and the 
+Windows PowerShell installation directory, $pshome
+
+
+	Because the registry has different drives with different information, the 
+shell provides a different view of the data. In this case, it is important 
+to know how many subkeys and entries are present, so the output includes a 
+subkey count (SKC) and a value entry count (VC), in addition to the names of 
+the subkeys and the entries.
+
+	The entries in a registry key are considered to be properties of the key in 
+which they are located. As such, you use the Get-ItemProperty cmdlet to 
+retrieve them.
+
+  >New-PSDrive -name Docs -PSProvider FileSystem -Root C:\users\sjoshi\Documents
+  >cd Docs:
+  >ls
+  >c:
+  >Remove-PSDrive Docs
+  >Get-Location
+  
+Drives are not the only way to access items, though. Each provider exposes a full provider-qualified 
+path that usually takes the form of [ProviderName]::[Provider-local path]. 
+
+  >dir Registry::HKEY_CURRENT_USER\
+  
+  
+ To view file associations, use: 
+ 
+  > C:\Users\sjoshi> cmd /c assoc .pdf
+  .pdf=FoxitReader.Document
+
+  > C:\Users\sjoshi> cmd /c ftype Foxitreader.Document
+  Foxitreader.Document="C:\PROGRA~2\FOXITS~1\FOXITR~1\FOXITR~1.EXE" "%1"
+
+ 
+Getting Values:
+---------------
+
+Registry   - Clear-Item, Get-Item, Invoke-Item, Set-Item, Resolve-Path, Test-Path, Get-ChildItem,      
+Copy-Item, New-Item, Remove-Item, Rename-Item, Join-Path, Move-Item, Clear-ItemProperty, Get-ItemProperty, 
+Set-ItemProperty, Copy-ItemProperty, Move-ItemProperty,, New-ItemProperty, Remove-ItemProperty, Rename-ItemProperty, Get-Acl, Set-Acl
+
+FileSystem  - Clear-Item, Get-Item, Invoke-Item, Set-Item, Resolve-Path, Test-Path, Get-ChildItem,      
+Copy-Item, New-Item, Remove-Item, Rename-Item, Join-Path, Move-Item, Add-Content, Clear-Content, 
+Get-Content, Set-Content, Clear-ItemProperty, Get-ItemProperty, Set-ItemProperty, Get-Acl, Set-Acl
+
+
+Listing files > 10 MB: 
+  gci | ? { -not $_.PSISContainer -and ($_.Length -gt 10MB)} | %{ri $_.Fullname -Confirm}
+  
+ Smartplant-3D:
+  New-PSDrive -Name SPProjectDb -PSProvider Registry -Root 
+  "HKCU:\Software\Intergraph\Applications\Environments\CommonApp\ProjectDB"
+  get-itemproperty SPProjectDb:
+ 
+
+Listing log files:
+  Get-WmiObject -class Win32_NTEventlogFile | sort filesize -Descending | ft -AutoSize
+
+
+Average of LastWriteTime:
+  New-Object DateTime (dir | %{$_.LastWriteTime.Ticks} | measure -Average).Average
+
+Binary Conversion:
+  [Convert]::ToString(4,2)
+  100
+
+  [Convert]::ToInt32("100010010",2)
+  274
+
+File Attributes:
+  [Enum]::GetNames([System.IO.FileAttributes])
+  ReadOnly
+  Hidden
+  System
+  Directory
+  Archive
+  Device
+  Normal
+  Temporary
+  SparseFile
+  ReparsePoint
+  Compressed
+  Offline
+  NotContentIndexed
+  Encrypted
+
+Assembly:
+
+If you can't find it there, type this at a PowerShell prompt.
+
+  Copy ([PSObject].Assembly.Location) ~/Desktop
+
+Error Handling:
+
+The $ErrorActionPreference automatic variable lets you control how PowerShell handles nonterminating errors. 
+It supports the following values:
+
+Value             Meaning
+--------------------------
+SilentlyContinue  Do not display errors.
+Stop              Treat nonterminating errors as terminating errors.
+Continue          Display errors, but continue execution of the current cmdlet, script, function, or  
+                  pipeline. This is the default.
+Inquire           Display a prompt that asks how PowerShell should treat this error.
+
+Most cmdlets let you configure this explicitly by passing one of these values to the
+ErrorAction parameter.
+
+What if we want to hide that message? This is where it all gets tricky and counterintuitive—at least for 
+those, like me, who are used to seeing the break and continue statements only in loops. To hide the error, 
+we have to use a continue statement. This statement will suppress the error printout, and execution 
+will continue with the next statement in the script.
+  
+  trap [System.Management.Automation.PSInvalidCastException]
+  {
+      Write-Host "Error converting a string to date!"
+      $realException = $_.Exception.InnerException
+      Write-Host "Inner Exception: $($realException.GetType())"
+      continue
+  } 
+  Write-Host "script begin"
+
+SQL Server:
+----------
+To start SQL Server Powershell prompt, type in sqlps <ENTER>. To load SQL Server environment from a script, 
+the script must add the sqlserver snap-ins, set certain global variables and then load SMO objects.
+
+ 
+ 

@@ -1,0 +1,364 @@
+Silverlight
+===========
+
+URI Escape: http://docs.aptana.com/docs/index.php/URL_Escape_Codes
+
+Bing Key:-
+
+SP3DRepos 
+AluQ65mGhXjApW6QHyWcIvNifZoj-gXjqF-7BbhjUHrhraLQSum2RC8jbcxcJhWE 
+http://sp3dsuppapp1/sp3drepos Developer
+
+Yelp Key:-
+
+5CiM4XfnzzuQDe7PACftJg
+
+http://blogs.msdn.com/b/thebeebs/archive/2010/06/28/geocoding-using-silverlight.aspx
+http://www.yelp.com/developers/documentation/phone_api
+
+Links:-
+http://www.drowningintechnicaldebt.com/ShawnWeisfeld/archive/2010/08/26/using-a-valueconverter-in-silverlight-to-change-the-background-color.aspx
+http://www.wcfriaservices.net/Wiki/Windows-Authentication-with-WCF-RIA-Services.ashx
+http://forums.silverlight.net/forums/t/148523.aspx
+http://www.devx.com/RIA/Article/40186/1763/page/2
+http://jeffhandley.com/archive/2010/03/12/lookupdata.aspx
+http://blogs.objectsharp.com/cs/blogs/dan/archive/2010/04/13/wcf-ria-services-not-found-error-message.aspx
+
+GET /ClientBin/SP3DRepos-Web-Services-SupportDbPMDS.svc/binary/GetModelDbByPlantName?plantName=p&$orderby=it.DBServer 
+
+http://weblogs.asp.net/dwahlin/archive/2009/07/12/simplifying-the-process-of-cal
+ling-a-wcf-service-from-silverlight-or-any-net-application.aspx
+http://weblogs.asp.net/dwahlin/archive/2009/06/20/control-oriented-vs-data-orien
+ted-programming-in-silverlight.aspx
+
+http://silverlight.net/learn/learnvideo.aspx?video=245417
+
+http://jonas.follesoe.no/YouCardRevisitedImplementingTheViewModelPattern.aspx
+
+http://blog.lab49.com/archives/2650
+
+http://blogs.msdn.com/vijayu/archive/2009/06/08/unit-testing-business-logic-in-n
+et-ria-services.aspx
+
+http://blogs.msdn.com/brada/archive/2009/03/17/mix09-building-amazing-business-a
+pplications-with-silverlight-3.aspx
+
+
+Controls:-
+
+http://mightymeaty.members.winisp.net/blacklight.silverlight/
+http://www.david-black.info/Bashboard/Extras/Contacts.aspx
+
+Authentication:-
+
+Using Windows authentication. Settings in the Web.config file:
+http://openlightgroup.net/Blog/tabid/58/EntryId/55/RIA-Services-Windows-Authentication-amp-GetUser-Error.aspx
+http://www.scip.be/index.php?Page=ArticlesNET30#ClientSideProblems
+
+<roleManager enabled="true" defaultProvider="AspNetWindowsTokenRoleProvider"/>
+		<identity impersonate="true"/>
+    <authentication mode="Windows"/>
+      <!--<forms name=".SP3DRepos_ASPXAUTH" />
+    </authentication>-->
+
+    <profile enabled="false">
+      <properties>
+        <add name="FriendlyName"/>
+      </properties>
+    </profile>
+  
+  
+OS:-
+
+http://www.vistax64.com/tutorials/81176-speed-up-performance-vista.html
+
+Nikhil Kothari:
+http://www.nikhilk.net/RIAServices-BookClub-TOC.aspx
+
+How to add view model class inside xaml file, sorry iam first time use visual studio?
+
+There is no automated way to do it (not that I know of). If you look at the .csproj, you'll see the .model.cs is marked as dependent on the .xaml file. That is what creates the nesting in visual studio.
+
+I looked into this earlier and it's rather annoying so I'll just answer it for you but maybe Nikhil has a better way of doing it, you need to edit the project file and add a <DependantUpon> tag to the files you want to link as codebehind.
+
+Here's a example from the app in BookClub.csproj:
+<Compile Include="Pages\BookShelf.Model.cs">
+<DependentUpon>BookShelf.xaml</DependentUpon>
+</Compile>
+
+Themes:-
+Aww, downloaded everything again, reinstalled, added a new Silverlight Navigation with Cosmopolitan Theme to my project and looked under App.xaml.
+
+The following was listed in the new App.xaml that wasn't in the old one:
+<!--<ResourceDictionary Source="Assets/ToolkitStyles.xaml"/>
+To extend this theme to include the toolkit controls:
+1. Install the Silverlight Toolkit for Silverlight 4
+2. Add a Toolkit control to your project from the toolbox. This will add references to toolkit assemblies.
+3. Change the "Build Action" for ToolkitStyles.xaml to "Page"
+4. Uncomment the resource dictionary include above.
+
+If you do not intend to use toolkit controls, delete this comment and the ToolkitStyles.xaml file.-->
+
+That outta fix my problem. 
+
+WCF:-
+
+The CallService method shown next accepts an async callback delegate as well as 
+the parameter data that should be passed to the service.  In other words, tell 
+it what method to call once the service returns data as well as what data to 
+pass up to the service operation. 
+When calling the CallService method you must supply the type of EventArgs that 
+will be returned from the service call.  This is done using generics.  
+
+	/// <summary>
+	/// Used to call a WCF service operation.
+	/// </summary>
+	/// <typeparam name="T">The type of EventArgs that will be returned by the 
+service operation.</typeparam>
+	/// <param name="callback">The method to call once the WCF call returns (the 
+callback).</param>
+	/// <param name="parameters">Any parameters that the service operation 
+expects.</param>
+	public void CallService<T>(EventHandler<T> callback, params object[] 
+parameters) where T : EventArgs
+	{
+		string action = typeof(T).Name.Replace("CompletedEventArgs", 
+String.Empty);
+		IJobPlanService proxy = new JobPlanServiceClient();
+		Type t = typeof(JobPlanServiceClient);
+		t.GetEvent(action + "Completed").AddEventHandler(proxy, callback);
+		t.InvokeMember(action + "Async", BindingFlags.InvokeMethod, null, proxy, 
+parameters);
+	}
+
+
+An example of using the CallService method is shown next: 
+
+	public void GetAreasByJobID()
+	{
+		_Proxy.CallService<GetAreasByJobIDCompletedEventArgs>((s,e) => 
+this.CurrentTimeSheetView.Areas = e.Result,
+			this.TimeSheetJob.JobID);
+	}
+
+The GetAreasByJobID method passes a type of GetAreasByJobIDCompletedEventArgs as 
+the generic type to CallService, defines the async callback using a lambda 
+expression (although a separate method could certainly be defined) and passes 
+the parameter that the service operation expects (multiple parameters can be 
+passed when needed).  CallService knows which WCF service operation to call 
+based upon the generic type that’s passed since WCF service proxy object’s 
+always create EventArgs classes that end with “CompletedEventArgs”.  The method 
+simply removes the string “CompletedEventArgs” to get the operation name, 
+instantiates the service proxy object and then uses reflection to wire up the 
+appropriate event and async method to call.  If you use several different 
+service proxy objects you could certainly handle that as well with generics.  I 
+played around with ChannelFactory as well but opted for this approach mainly 
+because it was more straightforward in my opinion and because I wanted to use 
+the generated WCF proxy anyway.
+
+
+Templates:-
+
+Get from: http://code.msdn.microsoft.com/silverlightut
+
+Project templates go here: %userprofile%\Documents\Visual Studio 
+2008\Templates\ProjectTemplates
+
+Item templates: %userprofile%\Documents\Visual Studio 
+2008\Templates\ItemTemplates
+
+And the unit test framework binaries: %programfiles%\Microsoft 
+SDKs\Silverlight\v2.0\Libraries\Client
+
+
+Application Services:-
+
+The main reason many developers put these services on the App class is to ensure that those services are available through the lifetime of the application. In Silverlight 3, Microsoft has come up with another option: Application Services.
+
+The idea of Application Services is pretty simple: any set of functionality that needs to have the same lifetime as the Application.  An Application Service is a class that supports the IApplicationService interface (and optionally IApplicationLifetimeAware)
+
+I might have a Logger service that I want to use in my Silverlight app. If I implement the interface, I can then set up this service in the App.xaml file to start up with the applicaton using the Application.ApplicationLifetimeObjects element:
+
+	<Application xmlns="..."
+							 xmlns:x="..." 
+							 x:Class="..."
+							 xmlns:s="clr-namespace:MyAppService;assembly=MyAppService"
+							 >
+		<Application.ApplicationLifetimeObjects>
+			<s:Logger />
+		</Application.ApplicationLifetimeObjects>
+		...
+	</Application>
+	
+In addition to the IApplicationService, another useful interface here is the IApplicationLifetimeAware interface. This interface gives you a bit more control in the starting and stopping of the service.  Here's the interface:
+
+	public interface IApplicationLifetimeAware
+	{
+		void Starting();
+		void Started();
+		void Exiting();
+		void Exited();
+	}	
+
+public class Logger : IApplicationService, IApplicationLifetimeAware
+   {
+     static Logger _current = null;
+     const string filename = "__logger.txt";
+ 
+     public static Logger Current
+     {
+       get { return _current; }
+     }
+ 
+     public void SendLog(string s, params object[] args)
+     {
+       using (var store = IsolatedStorageFile.GetUserStoreForApplication())
+       using (var stm = store.OpenFile(filename, System.IO.FileMode.OpenOrCreate, System.IO.Fi
+ leAccess.Write, System.IO.FileShare.ReadWrite))
+       {
+         // Move to the end
+         stm.Seek(0, SeekOrigin.End);
+ 
+         // Write the log
+         using (var writer = new StreamWriter(stm))
+         {
+           writer.WriteLine(s, args);
+         }
+       }
+     }
+ 
+     void IApplicationService.StartService(ApplicationServiceContext context)
+     {
+       _current = this;
+     }
+ 
+     void IApplicationService.StopService()
+     {
+       _current = null;
+     }
+ 
+     void IApplicationLifetimeAware.Starting()
+     {
+       using (var store = IsolatedStorageFile.GetUserStoreForApplication())
+       {
+         // Clear the old log
+         store.DeleteFile(filename);
+       }
+     }
+
+Sandboxing:
+
+To make Silverlight more secure, Microsoft prevents my application from making arbitrary requests to any web server at all. It “sandboxes” my application, and before it allows any request to be made, it checks with each web server and asks the web server whether or not the application is allowed to make the request.
+
+It does this by checking for a file on the web server called either cross_domain.xml, the same file Flash uses to solve this problem, or clientaccesspolicy.xml, which is specific to Silverlight. If one of those files doesn’t exist on the web server, Silverlight won’t let you make a request to that web server.
+
+
+Data Binding:-
+	
+	Basic rule 1 of Silverlight binding says that the target element of a 
+data-binding operation must be a FrameworkElement. Rule-2 says that the 
+target property must be a dependency property.
+
+	A set of XAML attributes exists to support the data-binding features. The 
+following pseudocode examples represent basic usage of these extensions:
+
+		<someFrameworkElement property="{Binding}" .../>
+
+		<someFrameworkElement property="{Binding pathvalue}" .../>
+
+		<someFrameworkElement property="{Binding Path=pathvalue}" .../>
+
+		<someFrameworkElement
+			property="{Binding oneOrMoreBindingProperties}" .../>
+
+		<someFrameworkElement property
+			="{Binding pathvalue, oneOrMoreBindingProperties}" .../>
+
+	The Binding attribute indicates that the value for the dependency property 
+will come from a data-binding operation. The binding gets its source from 
+the DataContext for the element. If the element does not have a DataContext, 
+the XAML hierarchy is examined to see whether any parent XAML container 
+element has a DataContext. All that is needed to bind an element to an 
+object that is the DataContext (and not to a property of the object) is the 
+Binding attribute (see the first line of XAML from the previous example). 
+For instance, this is commonplace when binding a ListBox to an object that 
+is a list.
+
+	If the Source property (optional) is omitted, the data source will defer to 
+the DataContext.
+
+	The second usage of the binding markup syntax is to specify a pathvalue. 
+This can be the name of a property that exists on the bound object. For 
+example, to bind a TextBox's Text property to the CompanyName property of an 
+object in the inherited DataContext, you could use the following XAML:
+
+		<TextBox x:Name="tbCompany" Text="{Binding CompanyName}"/>
+
+	Optionally, you can use the Path keyword to set the pathvalue. The following 
+code also binds the CompanyName property of the DataContext, but uses the 
+optional Path keyword:
+
+		<TextBox x:Name="tbCompany" Text="{Binding Path=CompanyName}"/>
+
+	The NotifyOnValidationError property accepts a boolean value that indicates 
+whether the BindingValidationError event is raised when a validation error 
+occurs. The ValidatesOnExceptions property accepts a boolean value that 
+indicates whether validation exceptions will be reported when an exception 
+occurs. In Silverlight, the only type of validation that exists is 
+validation on exceptions. You must set both of these properties for the 
+BindingValidationError event to be raised.
+
+
+Binding Modes:
+	
+	Whether the binding mode is set to OneWay or OneTime, if the data source 
+does not implement INotifyPropertyChanged, updates to the data source's 
+property will not notify the target. The net effect would be that even with 
+OneWay binding mode, the value would not be updated. So, without 
+INotifyPropertyChanged, OneWay has the same behavior as OneTime.
+
+Binding Lists, Templates:
+
+	The ListBox is bound by setting the ItemsSource property set to the 
+DataContext. The "how to display it" part is determined by creating controls 
+that will visually display the desired properties of the List<T> or T 
+entity.
+
+	The display could also be much more elaborate, as you can represent the 
+content of each ListBox item using templates of your own design. Here the 
+ListBox items (displayed via the ItemTemplate property) are represented by a 
+DataTemplate that contains a single TextBlock.
+
+	Two main bindings are functioning here. First, the List<Product> is bound to 
+the ListBox's ItemsSource property. Second, each row in the ListBox is bound 
+to a Product from the ItemsSource binding and will be displayed using the 
+DataTemplate.
+
+	<ListBox x:Name="lstProducts" Height="88" HorizontalAlignment="Left"
+		VerticalAlignment="Bottom" Margin="20,20,20,5" Width="440"
+		Style="{StaticResource ListBoxStyle}" ItemsSource="{Binding}" >
+		<ListBox.ItemTemplate>
+			<DataTemplate>
+				<StackPanel Orientation="Horizontal">
+					<TextBlock Text="{Binding ProductName, Mode=OneWay}"
+					Style="{StaticResource TextBlockCaptionStyle}"
+					FontSize="14"/>
+				</StackPanel>
+			</DataTemplate>
+		</ListBox.ItemTemplate>
+	</ListBox> 
+
+ 
+	The ListBox control's ItemsSource set to the Binding keyword. This indicates 
+that the ItemsSource will be bound to the inherited DataContext. You could 
+set the DataContext for the ListBox or a parent control of the ListBox to 
+the List<Product>, and the ItemsSource would inherit that List<Product>.
+
+
+Binding Mode Considerations:
+
+	A good rule of thumb to follow is to set the binding mode for ListBox items 
+to OneTime when dealing with most master detail scenarios. Also, you should 
+use OneWay binding for ListBox items only when you need to have the items 
+updated, as the values in the source object change, which may be when 
+another control loses focus

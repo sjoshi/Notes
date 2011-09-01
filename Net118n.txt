@@ -1,0 +1,463 @@
+.NET Internationalization
+===========================
+
+Windows Multilingual User Interface Pack:-
+
+	Windows Multilingual User Interface (MUI) Pack is a collection of resource 
+files that can be added to the English version of Windows 2000, XP, and 
+2003. Windows MUI is installed after the installation of a regular 
+English-language version of Windows. You can choose as many languages as you 
+want from any of the localized languages (33 languages in Windows XP MUI)
+
+	The Japanese resources are loaded from a resource file with the same name as 
+the executable, with a ".mui" suffix, in the %WINDOWS%\mui\FALLBACK\ <LCID> 
+folder. The LCID (locale ID) for "Japanese (Japan)" is 1041 (x0411).
+	So you would have a wordpad.exe.mui in the above folder for resources that 
+are Japanese.
+
+	However, some important differences exist. These are either advantageous or 
+disadvantageous, depending on what you want to use Windows MUI for. First, the 
+default fonts shown are the defaults for English Windows XP, not Japanese 
+Windows XP. Second, the Input Method Editor (IME, software that allows the user 
+to type ideo-graphic or phonetic characters on a keyboard that does not have 
+such characters) is not enabled by default. Although you can easily add IME 
+support (see Chapter 7, "Middle East and East Asian Cultures"), this isn't 
+something that a developer who is unfamiliar with Japanese would think to do.
+
+Windows Version		Locales Supported
+
+Windows Vista		200+ 
+Windows XP SP2		160 
+Windows 2003		135
+ 
+.NET Framework Languages and .NET Framework Language Packs
+	
+	We start by looking at the .NET Framework 2.0. The .NET Framework 2.0 
+redistributable package, dotnetfx.exe, is a single package that supports all 
+languages. The dotnetfx.exe that you download from the English page is 100% 
+identical to the dotnetfx.exe that you download from the French page. The 
+difference lies only in the fact that the English page has instructions in 
+English and the French page has instructions in French. 
+
+The package itself, however, contains the complete user interface resources for 
+all supported languages. The important point to grasp here is that the .NET 
+Framework that is installed is always the English version of the .NET Framework.
+
+You might wonder how you can get localized versions of all the text in the .NET 
+Framework. Enter .NET Framework Language Packs. .NET Framework Language Packs 
+include text and other resources for languages other than English. 
+
+The language pack files have the same name for each language, so you must create 
+separate directories or rename them. You can install as many language packs on 
+the same machine as you need. Your .NET application will use the resources from 
+the language pack according to the current setting of the 
+System.Threading.Thread.CurrentThread.CurrentUICulture property.
+
+
+Cultures:-
+	
+	A culture is a language and, optionally, a region. In the .NET Framework, it 
+is represented by the System.Globalization.CultureInfo class.
+
+	Typically, a culture is created from a culture string. The culture string is 
+specified in the RFC 1766 format:
+
+		languagecode2[-country/regioncode2[-script]]
+
+	languagecode2 is an ISO 639-1 or 639-2 code, country/regioncode2 is an ISO 
+3166 code, and script is the writing system used to represent text in the 
+country/region (e.g., Latin, Cyrillic). 
+	
+	For example, the following code creates a CultureInfo object for the English 
+language:
+
+		CultureInfo cultureInfo = new CultureInfo("en");
+
+	CultureInfo objects are classified as either invariant, neutral, or 
+specific. The invariant culture, represented by an empty string, is intended 
+to represent the absence of any given culture.
+
+	CultureInfo objects have a Parent property so that the "en-US" specific 
+culture knows that its parent is the "en" neutral culture which, in turn, 
+knows that its Parent is the invariant culture. This hierarchy is essential 
+for the fallback process described later in this chapter.
+
+
+Localizable Strings:-
+
+	To make code localizable we need to place the string in some other container 
+that can changed at runtimes. .NET has .resx files for this that can 
+contain resources such as strings and bitmaps.
+
+	Name the resource file as the source file to which it relates. So if you 
+have a TaxCalc.cs, name the corresponding resource file as 
+TaxCalcResources.resx. 
+
+	VS2005 windows forms applications have a default resource file called 
+Resources.resx which is for your own use.
+
+	Select the Form1Resources.resx file in Solution Explorer and take a look at 
+it in the Properties Window. The Build Action property says that it is an 
+Embedded Resource. This means that Visual Studio will identify the correct 
+compiler for this resource type, compile it, and embed the result in the 
+generated assembly. The correct compiler for resx files is a built-in 
+version of resgen.exe. A "resources" file is a binary version of an XML resx 
+file. Visual Studio embeds the compiled output in the generated assembly 
+using a build task that is a wrapper for the Assembly Linker. 
+	
+	The result is a file called "Form1Resources.resources" that contains the 
+compiled resources. 
+
+	At this stage, we have a WindowsApplication1.exe assembly that has an 
+embedded resource called "WindowsApplication1.Form1Resources.resources," 
+which contains a single string called "InsufficientFunds," which has a value 
+of "Insufficient funds for the transfer." We need a way to retrieve this 
+string from the embedded resource.
+
+
+Using French Strings:-
+
+	To reap the rewards of our work, we need to offer a second or third 
+language. In this example, we add French to the list of supported languages. 
+This is where the culture strings that we discussed earlier come in. The 
+culture string for neutral French is "fr." Create a new Resource File so 
+that the complete filename is Form1Resources.fr.resx. Into this resource 
+file, add a new string, using the same name as before, "InsufficientFunds"; 
+into the Value field this time, though, type the French equivalent of 
+"Insufficient funds for the transfer" ("Fonds insuffisants pour le 
+transfert").
+
+	Compile the application and inspect the output folder. You will find a new 
+folder called "fr" beneath the output folder. If the output folder is 
+\WindowsApplication1\bin\Debug, you will find 
+WindowsApplication1\bin\Debug\fr. In this folder you will find a new 
+assembly with the same name as the application, but with the extension 
+".resources.dll" (i.e., WindowsApplication1.resources.dll).
+
+	The Form1Resources.fr.resx file has been compiled and embedded in this new 
+assembly. This new assembly is a resources assembly, and it contains 
+resources only. This assembly is referred to as a satellite assembly
+
+
+CurrentCulture & CurrentUICulture:-
+	
+	Two properties that determine the default internationalization behavior of 
+an application are: CurrentCulture and CurrentUICulture. Both properties can 
+be accessed either from the current thread or from the CultureInfo class, 
+but they can be assigned only from the current thread.
+
+	CurrentCulture is culture-specific, not culture-neutral. That is, the value 
+includes a region as well as a language. CurrentCulture defaults to the 
+Win32 function GetUserDefaultLCID. This value is set in the Regional and 
+Language Options Control Panel applet.
+	
+	If you consider that this value determines issues such as date/time formats 
+and the number and currency formats, you can understand that it is 
+meaningless to assign a "French" culture to CurrentCulture because French in 
+Canada has completely different globalization values to French in France. It 
+represents the default culture for all classes in System.globalization and 
+thus affects issues such as culture-specific formatting like in date-time, 
+number-currency, pasring and sorting.
+
+	In general, your application should strive to acquire a specific culture for 
+the CurrentCulture, but there is an option to manufacture a specific 
+culture, which can be considered a last resort. The 
+CultureInfo.Create-SpecificCulture method accepts a culture and returns a 
+specific culture from it. So if you pass it "fr" for French, you get a 
+culture for French in France. 
+
+	On the other hand the property of the thread that has to do with 
+language/translations etc is CurrentUICulture. The CurrentUICulture, 
+however, defaults to the Win32 function GetUserDefaultUILanguage. This value 
+is usually determined by the user interface language version of the 
+operating system and cannot be changed. So if you install the French version 
+of Windows, GetUserDefaultUILanguage returns French; therefore, 
+CurrentUICulture defaults to French.
+
+	CurrentUICulture represents the default culture used by ResourceManager 
+methods and thus affects the retrieval of user interface resources such as  
+strings and bitmaps. The CurrentUICulture can be culture-neutral, 
+culture-specific, or the invariant culture
+
+	This line creates a new CultureInfo object for neutral French.
+
+		Thread.CurrentThread.CurrentUICulture = new CultureInfo("fr");
+
+
+Fallback Assembly:-
+	
+	We have System.Resources.Neutral-ResourcesLanguageAttribute. The 
+NeutralResourcesLanguage attribute enables you to declare the culture of the 
+main assembly. The purpose of this is to save unnecessary searching for 
+resource assemblies. You use it like this:
+
+		[assembly: NeutralResourcesLanguageAttribute("en-US")]
+
+	This line can go anywhere (for example, at the top of Form1.cs), but it is 
+best placed with other similar assembly attributes in AssemblyInfo.cs. With 
+this attribute in place when CurrentUICulture is en-US, 
+ResourceManager.GetString looks in the main assembly immediately without 
+performing unnecessary lookups in the en-US or en folders. In Visual Studio 
+2005, you can set this same attribute in the Assembly Information dialog 
+(click the Assembly Information... button in the Application tab of the 
+project's properties).
+
+
+Culture Info:-
+
+	Two cultures use nonstandard culture string formats: zh-CHS (Chinese 
+(Simplified)) and zh-CHT (Chinese (Traditional)). Looking at these strings, 
+you would expect them to represent specific cultures ("zh" being a language 
+and "CHS"/"CHT" being a country), but they do not. Instead, they are both 
+neutral cultures and are parents to zh-CN (Chinese (People's Republic of 
+China)) and zh-TW (Chinese (Taiwan)), respectively. 
+	
+	For this reason, you should take care to use the 
+CultureInfo.IsNeutralCulture property to determine whether a culture is 
+neutral instead of making an inference by parsing the culture's name. This 
+property is similarly important when considering custom cultures because 
+there is no requirement that the name of a custom culture follow a strict 
+<language>-<region> format. 
+	
+	Note that there is no CultureInfo.IsSpecificCulture property, so the 
+implication is that if IsNeutralCulture is false, the culture is specific. 
+This is true for all cultures except CultureInfo.InvariantCulture, which is 
+neither neutral nor specific (although it can behave like a specific 
+culture). You can test a culture to see if it is the invariant culture by 
+making a comparison with CultureInfo.InvariantCulture.
+
+
+Sort Orders:-
+
+	String.CompareOrdinal is similar to String.Compare, but it performs the 
+comparison based upon the Unicode code points of each character in the 
+string and returns the "magnitude" of the difference. For example, 
+String.CompareOrdinal("a", "·") returns -128. The Unicode code point of the 
+letter "a" is U+0061 (97), and the Unicode code point of the letter "·" is 
+U+00E1 (225). The result is 97 225 (i.e., 128). There are several benefits 
+to using String.CompareOrdinal: It is culture-insensitive (because it uses 
+Unicode code points) and it is faster than other comparison methods. It 
+should also be noted that String.CompareOrdinal compares all characters in a 
+string, whereas other comparison methods are dependent upon characters being 
+defined in the .NET Framework's sorting tables. This means that if a 
+comparison is performed using String.Compare and is passed the invariant 
+culture, characters that are not in the .NET Framework's sorting tables will 
+simply be ignored.
+
+	For these reasons, Microsoft recommends using an ordinal comparison for 
+culture-insensitive comparisons. Additionally, it should be noted that 
+although the actual sort itself is unlikely to yields results that are 
+culturally significant for any particular culture, it can still be useful 
+for maintaining ordered lists that require fast searching.
+	
+	The .NET Framework 2.0 supports the creation of cultures for an alternate 
+sort order using a language and region suffixed with the alternate sort 
+order:
+
+		CultureInfo cultureInfo = new CultureInfo("es-ES_tradnl");
+
+
+DateTime & Calendars:-
+
+	The DateTime structure holds the date/time information as a culture-agnostic 
+point in time in the form of ticks and as such it is not dependent on any 
+culture.
+	The DateTime structure accepts calendar objects in its constructor for the 
+sole purpose of interpreting the year, month and the day passed to the 
+constructor.
+
+	The DateTimeFormatInfo class contains date-time formatting information. It 
+has a read-write Calendar property from which it can draw information about 
+how any given point in time is represented in a particular calendar.
+
+	Here the CultureInfo's calendar is changed to Japaneses using it's 
+DateTimeFormat property.
+
+		CultureInfo japCulture = new CultureInfo("ja-JP");
+		jap.DateTimeFormat.Calendar = new JapaneseCalendar();
+
+		DateTime jan2000 = new DateTime(2000, 1, 1, new GregorianCalendar());
+
+		Console.WriteLine(jan2000.ToString(japCulture));
+		//Outputs  12/1/1 0:00:00
+
+		
+International Domain Name Mapping:-
+
+	When the World Wide Web was first developed, the Domain Name Service upon 
+which it is based was rooted firmly in the ASCII character set. This meant 
+that all domain names had to conform to 7-bit ASCII. This tiny range (U+0000 
+to U+007f) covers the English language and very few others. The problem 
+faced by the rest of the world was how to create domain names that used 
+characters outside of this range yet still worked with the antiquated ASCII 
+DNS.
+		
+	IdnMapping idnMapping = new IdnMapping();
+	textBoxASCII.Text = idnMapping.GetAscii(textBoxIDN.Text);
+
+
+	When the button is pressed, the ASCII TextBox is filled with the encoded 
+domain name "http://www.xni18ncaf-hya.com". The second "Go" button contains 
+the following code:
+
+	webBrowser1.Navigate(textBoxASCII.Text);
+	string programFilesFolder =	Environment.GetFolderPath(									Environment.SpecialFolder.ProgramFiles);
+
+
+Font Selection:-
+
+	 In terms of code point range coverage, Arial Unicode MS (installed with 
+some Microsoft Office applications) has one of the largest. One of the 
+limitations of the Font Properties Extension is that it cannot show 
+additional tabs for Font Collections. A Font Collection (.TTC) is a file 
+that is a collection of fonts. You can overcome this limitation by breaking 
+down collections into individual font files using BREAKTTC.EXE (from the 
+Microsoft TrueType Font SDK). The Font Properties Extension simply works 
+with font files anywhere, so you don't have to extract the files to the 
+system's font directory.
+
+	Font substitution is of interest in the localization process because of two 
+font face names: MS Shell Dlg and MS Shell Dlg 2. These font face names are 
+set to different fonts for different versions of Windows and different 
+language versions of Windows. The MS Shell Dlg 2 font face name is intended 
+to be used with Windows 2000 and above.
+
+	The benefit of using one of these font face names in your application is 
+that your application is abstracted from the problem of choosing a font 
+directly, and this choice can be delayed until runtime. The disadvantage of 
+using a font face name instead of a physical font name is that substituted 
+fonts are not visible in the Properties Windows in Visual Studio and cannot 
+be set in the Properties Window. Instead, they must be set in code:
+
+		public Form1()
+		{
+			Font = new Font("MS Shell Dlg 2", 12);
+			InitializeComponent();
+		}
+
+
+	The same comments as before about using a form base class apply equally 
+here. An alternative to this approach is to use the 
+StandardPropertiesResourceMan-ager in Chapter 12, "Custom Resource 
+Managers," which can assign the same value to every property (e.g., Font) 
+that is loaded as a resource.
+
+Font Linking:-
+	
+	By default, on Windows XP Professional SP2, there are no font links, but 
+there is nothing to stop you from adding your own. In the Registry, add new 
+keys to HKEY_LOCAL_MACHINE\SOFT WARE\Microsoft\Windows 
+NT\CurrentVersion\FontLink\SystemLink, where the key name is the name of the 
+font and the value is the names of the fonts that it is linked to. If you 
+install East Asian support (in the Regional and Language Options dialog, 
+select the Languages tab, check the "Install files for East Asian languages" 
+check box, and click OK), several entries are created.
+
+	You can see from this that by installing East Asian support, the Microsoft 
+Sans Serif font has been font-linked to the MSGOTHIC, gulim, SimSun, and 
+mingliu True-Type Collections.
+
+	In localization terms, this means that we can use a single font, such as 
+Microsoft Sans Serif or Tahoma, and rely upon it being extended to include 
+the glyphs that we need for other Unicode code ranges.
+
+	When a font does not have a glyph for a requested code point, the "not 
+defined" glyph (a box) is displayed instead.
+
+	The moral of this story is that you can use a single font throughout your 
+application for many different languages if it either supports all of those 
+languages or is linked to other fonts to support those languages.
+
+Exception Messages:-
+
+	The simplest way to localize this text is to let the .NET Framework do the 
+work for you:
+
+		throw new ArgumentException();
+
+In the absence of a supplied message, the .NET Framework gets a message 
+using its own ResourceManager. Consequently, the actual message retrieved is 
+dependent upon CultureInfo.CurrentUICulture and the .NET Framework Language 
+Packs installed on the machine. So if the CurrentUICulture is "de-DE" 
+(German (Germany)) and the German .NET Framework Language Pack is installed, 
+the exception message will be "Der Wert liegt auﬂerhalb des erwarteten 
+Bereichs." 
+	
+One problem that this raises is that the localization of exception messages 
+is clearly limited to the availability of .NET Framework Language Packs for the 
+current culture. So .NET Framework 1.1 exception messages on Arabic Windows are 
+in English because the fallback culture for the .NET Framework is English.
+	
+To create exceptions with localized messages, you either use the default 
+exception constructor or pass null for the message parameter:
+
+		throw new FileNotFoundException();
+		throw new FileNotFoundException(null);
+
+The .NET Framework and the installed Language Pack provide the localized 
+exception message. To create exceptions with English messages, you can still 
+use the default constructor or pass null for the message parameter, but you 
+set the Current UICulture before creating the exception:
+
+
+		Thread.CurrentThread.CurrentUICulture = new CultureInfo("en-US");
+		throw new IOException();
+		throw new IOException(null);
+
+	Exceptions that are thrown by the .NET Framework or by third-party code 
+(including COM objects, for example) are outside of your control, and .NET 
+exception messages will be localized regardless of the intended recipient of 
+the message.
+
+
+Psuedo Translation:-
+	
+As part  of internationalization  process, you will  want to  test how
+localizable  your application  is. Pseudo  translation  is translation
+that modifies the original text so that the original text can still be
+inferred from the translated text.
+	
+The option that I have chosen is to convert to accented
+characters. In this approach, each character is converted to an
+equivalent character that has an accent.
+
+A general rule is that, for text less than 10 characters, the
+text needs to be padded by an additional 400 percent; for text greater
+than or equal to 10 characters, the text needs to be padded by an
+additional 30 percent
+
+Choosing a Culture for Pseudo Translation:-
+	
+	To use pseudo translation, you must identify a culture that represents the 
+pseudo language. 
+	
+	You can create a custom culture if you are using VS2005, ASPNET or not using 
+resx files for resources or if you are unable to create a custom culture for 
+pseudo translation, the alternative is to hijack an existing culture. In 
+this approach, you identify a language/country that you do not expect to 
+ever use for its real purpose and hijack it for your own purpose.
+
+	Regardless of whether you create a custom culture or hijack an existing 
+culture, you need a means by which you can communicate your chosen culture 
+to code that needs to know the pseudo culture. The following 
+PseudoTranslation class has a static property that represents a global 
+placeholder for your chosen pseudo translation culture ("sq" is the language 
+code for Albanian):
+
+		public class PseudoTranslation
+		{
+			private static CultureInfo cultureInfo = new CultureInfo("sq");
+			public static CultureInfo CultureInfo
+			{
+				get {return cultureInfo;}
+				set {cultureInfo = value;}
+			}
+		}
+
+
+
+Custom Culture:-
+	
+	Creating a custom culture involves:
+		- Defining the custom culture
+		- Registering the custom culture

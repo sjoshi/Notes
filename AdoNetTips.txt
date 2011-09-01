@@ -1,0 +1,2566 @@
+ADNOET TIPS
+===========
+
+Connection String: http://www.carlprothman.net/Default.aspx?tabid=81
+http://www.asp.net/learn/data-access/?lang=cs
+
+ORACLE
+------
+
+http://download.oracle.com/docs/html/E10927_01/featSafeType.htm#i1008428
+http://download.oracle.com/docs/html/E10927_01/toc.htm
+
+select output from table(dbms_workload_repository.ash_report_text( (select dbid from v$database),
+                             1,
+                             sysdate-5/(24*60),
+                             sysdate,
+                             0))
+/
+
+
+select output
+   from table(dbms_workload_repository.ash_report_text(
+                      (select dbid from v$database),
+                             1,
+                             to_date('245444962040','JSSSSS'),
+                             to_date('245444962280','JSSSSS'),
+                             0, -- unknown
+                             0, -- slot_width 
+                             '', -- sid
+                             '05s4vdwsf5802',  -- sql_id
+                             '',  -- wait class
+                             '',  -- server_hash,number
+                             '',  -- module
+                             '',  -- action 
+                             ''  -- client-id 
+                              )) 
+/
+
+Access
+-------
+Provider=Microsoft.Jet.OLEDB.4.0;Data 
+Source=F:\Sunit\CSharpFiles\INGR\SP3DTools\Data\SP3DTools.mdb
+
+SQLServer
+----------
+SQL Server allows you to use the following network libraries when establishing a 
+connection. They are:
+•	dbnmpntw - Win32 Named Pipes
+•	dbmssocn - Win32 Winsock TCP/IP
+•	dbmsspxn - Win32 SPX/IPX
+•	dbmsvinn - Win32 Banyan Vines
+•	dbmsrpcn - Win32 Multi-Protocol (Windows RPC)
+
+When connecting to SQL Server through ADO the NETWORK parameter in the 
+connection string can be used to specify which of these libraries to use when 
+connecting to the database. The NETWORK parameter is the name of the Net-Library 
+module to use, without the .dll suffix (for example, Dbmssocn, not 
+Dbmssocn.dll). Here are some examples of connection strings that specify this 
+parameter:
+
+Note Make sure that User ID has the appropriate permissions to perform this 
+operation on the database.
+•	The following connection string:
+
+"Provider=SQLOLEDB.1;Persist Security Info=False;User ID=<User ID>;Initial 
+Catalog=pubs;Data Source=<YourDataSourceName>;Network Library=dbnmpntw"
+
+tries to connect to SQL Server through the SQLOLEDB provider using the Named 
+Pipes network library.
+
+•	The following connection string:
+
+"Provider=MSDASQL.1;Persist Security Info=False;User ID=<User ID>;Extended 
+Properties="DSN=<yourdatasourcename>;UID=<User ID>;DATABASE=pubs;Network 
+Library=dbmssocn";Initial Catalog=pubs"
+
+Also "Network Library=DBMSSOCN;"
+
+connects to SQL Server through the MSDASQL provider using the TCP/IP network 
+library.
+
+Oracle
+-------
+Provider=OraOLEDB.Oracle;Data Source=MyOracleDB;OSAuthent=1;" 
+
+Since Byte[] can be converted to Guid easily by Guid constructor, I think
+we can create a column whose data type is Guid, convert all the Byte[] data
+to Guid and put into that column. And remove the original column at last.
+I've written a code snippet to achieve this. Suppose you've got a DataSet
+ds. There's only one table in it and the column named "id" can is in Byte[]
+type. We need a new "idGuid" column to hold converted values.
+
+	da.Fill(ds, "Table1");    
+ds.Tables["Table1"].Columns.Add("idGuid",System.Type.GetType("System.Guid));
+
+	foreach(DataRow dr in ds.Tables["Table1"].Rows)
+	{
+			Byte[] b = (System.Byte[])dr["id"];
+			dr["idGuid"] = new System.Guid[b];
+	}
+	
+	ds.Tables["Table1"].Columns.Remove("id");
+
+I think this convertion might be transparent to the business logic layer. 
+
+Public Function GetOracleStrGUID(guidKey() As Byte) As String
+    Dim i As Long
+    Dim strKey As String
+    Dim strGUID As String
+    
+    For i = LBound(guidKey) To UBound(guidKey)
+        strKey = Hex(guidKey(i))
+        If Len(Hex(guidKey(i))) = 1 Then
+            strKey = CStr(0) & strKey ' Format as 0x00
+        End If
+        strGUID = strGUID & strKey
+    Next
+    
+    GetOracleStrGUID = strGUID
+
+End Function
+
+This took me awhile to figure out, so I thought I'd post the algorithm in
+case anyone else got stuck on this too.  Note that the TRACE_DATA column of
+the table is of type LONG RAW and not BLOB, although there's really no
+reason that it wouldn't work if the TRACE_DATA column was BLOB.  The LONG
+RAW datatype provides 2GB's of storage which is plenty for my purposes.
+Also, I haven't tried this with TRACE_DATA over 32K in size since I'm able
+to store the DNA sequence data in less than 32K.
+
+One more note about the purpose of this method:  this is part of a migration
+program that is copying the genotype table from one version of the schema to
+the next version, hence the data reader is reading from the previous version
+of the schema and the DTCommand is persisting the data into the new version
+of the schema.  There's probably many ways to optimize this, but since the
+migration is a one time deal, no work was put into optimization.  Enjoy!
+
+Matt
+mhous...@ix.netcom.com
+
+----------------------------------------------------------------------------
+
+    static void t_genotype_trace_data ( OleDbConnection DSConn,
+                                        OleDbConnection DTConn )
+    {
+        OleDbDataReader DSreader    = null;
+        String          strInsert   = "";
+        Byte [ ]        bytArray    = new Byte [ 32768 ];
+        int             intSize     = 8192;
+        int             intIndex    = 0;
+        int             intRead;
+
+        /******************************************
+         * Establish command for the data reader. *
+         ******************************************/
+        OleDbCommand DScommand = new OleDbCommand   (
+            "select GENOTYPE_TRACE_DATA_ID,"                +
+                   "EXPERIMENTAL_ALLELE_ID,"                +
+                   "CHANNEL,"                               +
+                   "TRACE_DATA,"                            +
+                   "to_char ( CREATE_DATE ) CREATE_DATE,"   +
+                   "VERSION_NBR,"                           +
+                   "TRACE_TYPE,"                            +
+                   "CREATED_BY "                            +
+            "from T_GENOTYPE_TRACE_DATA",
+            DSConn
+                                                   );
+
+            /***************************************************
+             * Construct SQL for migration to the data target. *
+             ***************************************************/
+            strInsert = "insert into T_GENOTYPE_TRACE_DATA ( "  +
+                        "GENOTYPE_TRACE_DATA_ID,"               +
+                        "EXPERIMENTAL_ALLELE_ID,"               +
+                        "CHANNEL,"                              +
+                        "TRACE_DATA,"                           +
+                        "CREATE_DATE,"                          +
+                        "VERSION_NBR,"                          +
+                        "TRACE_TYPE,"                           +
+                        "CREATED_BY ) VALUES ( "                +
+                        "?, "                                   +
+                        "?, "                                   +
+                        "?, "                                   +
+                        "?, "                                   +
+                        "?, "                                   +
+                        "?, "                                   +
+                        "?, "                                   +
+                        "? ) ";
+
+        /****************************************************
+         * Read and migrate the data from source to target. *
+         ****************************************************/
+        try
+        {
+            DSreader = DScommand.ExecuteReader ( );
+            while ( DSreader.Read ( ) )
+            {
+
+                /****************************
+                 * Read the BLOB in chunks. *
+                 ****************************/
+                intRead = ( int ) DSreader.GetBytes ( 3,
+                                                      intIndex,
+                                                      bytArray,
+                                                      intIndex,
+                                                      intSize );
+
+                /*********************************************
+                 * Read the BLOB until no more chunks exist. *
+                 *********************************************/
+                while ( intRead == intSize )
+                {
+                    intIndex += intSize;
+                    intRead = (int ) DSreader.GetBytes ( 3,
+                                                         ( long ) intIndex,
+                                                         bytArray,
+                                                         intIndex,
+                                                         intSize );
+                }
+                OleDbCommand    DTCommand   = new OleDbCommand ( );
+                DTCommand.Connection  = DTConn;
+                DTCommand.CommandText = strInsert;
+                DTCommand.Parameters.Add ( "GENOTYPE_TRACE_DATA_ID",
+                                           OleDbType.Integer );
+                DTCommand.Parameters [ "GENOTYPE_TRACE_DATA_ID" ].Value =
+                                        DSreader [
+"GENOTYPE_TRACE_DATA_ID" ];
+
+                DTCommand.Parameters.Add ( "EXPERIMENTAL_ALLELE_ID",
+                                           OleDbType.Integer );
+                DTCommand.Parameters [ "EXPERIMENTAL_ALLELE_ID" ].Value =
+                                        DSreader [
+"EXPERIMENTAL_ALLELE_ID" ];
+
+                DTCommand.Parameters.Add ( "CHANNEL", OleDbType.Integer );
+                DTCommand.Parameters [ "CHANNEL" ].Value =
+                                        DSreader [ "CHANNEL" ];
+
+                DTCommand.Parameters.Add ( "TRACE_DATA",
+                                           OleDbType.Binary, intIndex );
+                DTCommand.Parameters [ "TRACE_DATA" ].Value = bytArray;
+
+                DTCommand.Parameters.Add ( "CREATE_DATE",
+OleDbType.VarChar );
+                DTCommand.Parameters [ "CREATE_DATE" ].Value =
+                                        DSreader [ "CREATE_DATE" ];
+
+                DTCommand.Parameters.Add ( "VERSION_NBR",
+OleDbType.Integer );
+                DTCommand.Parameters [ "VERSION_NBR" ].Value =
+                                        DSreader [ "VERSION_NBR" ];
+
+                DTCommand.Parameters.Add ( "TRACE_TYPE",
+OleDbType.VarChar );
+                DTCommand.Parameters [ "TRACE_TYPE" ].Value =
+                                        DSreader [ "TRACE_TYPE" ];
+
+                DTCommand.Parameters.Add ( "CREATED_BY",
+OleDbType.Integer );
+                DTCommand.Parameters [ "CREATED_BY" ].Value =
+                                        DSreader [ "CREATED_BY" ];
+
+                DTCommand.CommandText = strInsert;
+                DTCommand.ExecuteNonQuery ( );
+                DTCommand.Dispose ( );
+            }
+        }
+        catch ( Exception e )
+        {
+            Console.WriteLine ( e.ToString ( ) );
+        }
+        finally
+        {
+            if ( DSreader != null )
+            {
+                DSreader.Close ( );
+            }
+
+        }
+    } 
+
+Compare DataSets
+-----------------
+
+Say the two datasets you wish to compare are ds1 and ds2.
+
+Create a new ds3.
+
+ds3.Merge(ds1) ;
+ds3.AcceptChanges() ;
+ds3.Merge(ds2) ;
+ds3.GetChanges() ; <--- That'd give you the diffgram of the differences
+between ds1 and ds2. 
+
+
+In the parameter objects (instances of OleDbParameter or SqlParameter) that the 
+wizard has generated to pass your datetime values into the query, you will find 
+it has used a constructor argument indicating data type of 
+System.Data.OleDb.OleDbType.DBDate where, to preserve the time portion, it 
+should be System.Data.OleDb.OleDbType.Date 
+
+System.Data.OleDb.OleDbCommand insert = new
+System.Data.OleDb.OleDbCommand("INSERT INTO <tablename> (date) VALUES (?)",
+connection);
+insert.Parameters.Add("date", System.Data.OleDb.OleDbType.Date, 8);
+insert.Parameters[0] = dt
+
+-------------------------------------------------------------------
+
+I figured out the problem.
+
+1. Create a dataset XSD
+2. Remove Target Namespace (if you want to use typed dataset with
+results comming back)
+3. Copy schema within dataset XML and paste into a new XML file
+4. enclose within <xs:schema
+xmlns:xs="http://www.w3.org/2001/XMLSchema"
+xmlns:sql="urn:schemas-microsoft-com:mapping-schema"
+xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+5. add your relationships in an annotation
+
+
+One important thing is how you make relationships with Typed DataSets.
+1. Drag Customer table onto dataset UI
+2. Drag Order table onto Customer Table within the datset UI to create
+a relationship.
+
+Before, we tried to create them as two seperate tables and create a
+relation between the two (Drag from Customer.CustomerID field to
+Orders.CustomerID) - however, once you remove the targetNamespace, the
+relationship (and keys) dissappear.  Although you can create the
+relationships again - one very important problem occurs.  Your VB file
+that defines the typed dataset disappears.  Try it and see for a first
+hand experience.
+
+here is the XML that finally worked by copying part of the contents
+from the typed dataset.
+
+<?xml version="1.0" encoding="utf-8" ?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+xmlns:sql="urn:schemas-microsoft-com:mapping-schema"
+xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+ <xs:element name="Cust">
+  <xs:complexType>
+   <xs:sequence>
+    <xs:element name="CustomerID" type="xs:string" minOccurs="0" />
+    <xs:element name="CompanyName" type="xs:string" minOccurs="0" />
+    <xs:element name="ContactName" type="xs:string" minOccurs="0" />
+    <xs:element name="Ord" sql:relationship="CusOrd"
+maxOccurs="unbounded">
+     <xs:complexType>
+      <xs:sequence>
+       <xs:element name="OrderID" type="xs:int" minOccurs="0" />
+       <xs:element name="CustomerID" type="xs:string" minOccurs="0" />
+      </xs:sequence>
+     </xs:complexType>
+    </xs:element>
+   </xs:sequence>
+  </xs:complexType>
+ </xs:element>
+ <xs:annotation>
+  <xs:appinfo>
+   <sql:relationship name="CusOrd" parent="Cust"
+parent-key="CustomerID" child="Ord" child-key="CustomerID" />
+  </xs:appinfo>
+ </xs:annotation>
+</xs:schema>
+
+
+DATA READER
+------------
+	The DataReader has a default parameterized property named Item. The 
+preceding code snippet implicitly used the Item property to access the 
+values stored in the CustomerID and CompanyName columns in the result set. 
+This code is inefficient, however. We can improve the performance of the 
+code in two ways.
+	
+	However, you might encounter situations where you’ll know the column name 
+but not its index. The DataReader offers an elegant way to determine a 
+column’s index based on its name. The GetOrdinal method accepts a string 
+that represents the column name and returns an integer to denote that 
+column’s ordinal. This method is a welcome addition to the ADO.NET object 
+model because it can help you improve performance without losing the 
+flexibility that comes with string-based lookups.
+
+		OleDbDataReader rdr = cmd.ExecuteReader();
+		int intCustomerIDOrdinal = rdr.GetOrdinal("CustomerID");
+		int intCompanyNameOrdinal = rdr.GetOrdinal("CompanyName");
+		while (rdr.Read())
+			Console.WriteLine(rdr[intCustomerIDOrdinal] + " – " + 
+rdr[intCompanyNameOrdinal]);
+		rdr.Close();
+
+	Using the appropriate type-specific Get method:-
+		The DataReader also exposes a series of methods that return data in the 
+different .NET Framework data types (such as string, 32-bit integer, 
+decimal, and double). Currently, our code snippet implicitly uses the 
+Item property, which returns the contents of the specified column in the 
+generic Object data type. To display the value stored in the console 
+window, the console has to convert the generic object to a string. 
+Because the CustomerID and CompanyName columns contain string data, we 
+can use the GetString method of the DataReader to return the contents of 
+the columns as a string, as shown here:
+
+		OleDbDataReader rdr = cmd.ExecuteReader();
+		int intCustomerIDOrdinal = rdr.GetOrdinal("CustomerID");
+		int intCompanyNameOrdinal = rdr.GetOrdinal("CompanyName");
+		while (rdr.Read())
+				Console.WriteLine(rdr.GetString(intCustomerIDOrdinal) + " – " + 
+								rdr.GetString(intCompanyNameOrdinal));
+		rdr.Close();
+
+		The DataReader exposes a NextResult method that lets you move to the 
+results of the next row-returning query :-
+
+		cn.Open();
+		string strSQL = "SELECT CustomerID, CompanyName FROM Customers;" +
+						"SELECT OrderID, CustomerID FROM Orders;" +
+						"SELECT OrderID, ProductID FROM [Order Details]";
+		OleDbCommand cmd = new OleDbCommand(strSQL, cn);
+		OleDbDataReader rdr = cmd.ExecuteReader();
+		do
+		{
+				while (rdr.Read())
+					Console.WriteLine(rdr[0] + " – " + rdr[1]);
+				Console.WriteLine();
+		} while (rdr.NextResult());
+
+	Executing Batches of Action Queries:-
+		string strConn, strSQL;
+		strConn = "Provider=SQLOLEDB;Data Source=(local)\\NetSDK;" +
+							"Initial Catalog=Northwind;Trusted_Connection=Yes;";
+		OleDbConnection cn = new OleDbConnection(strConn);
+		cn.Open();
+		strSQL = "INSERT INTO Customers ...;" +
+					 "SELECT CustomerID, CompanyName FROM Customers WHERE ...;" 
++
+					 "UPDATE Customers SET CompanyName = ... WHERE ...;" +
+					 "SELECT CustomerID, CompanyName FROM Customers WHERE ...";
+		OleDbCommand cmd = new OleDbCommand(strSQL, cn);
+		OleDbDataReader rdr = cmd.ExecuteReader();
+		do
+		{
+				Console.WriteLine("RecordsAffected = " + rdr.RecordsAffected);
+				while (rdr.Read())
+						Console.WriteLine("\t" + rdr.GetName[0].ToString() + 
+										" – " + rdr.GetValue[0].ToString());
+				Console.WriteLine();
+		}
+		while (rdr.NextResult());
+
+		You probably noticed that the ADO.NET code looks similar to the ADO 
+code. The results, however, are slightly different. When we create the 
+Data­Reader by calling the ExecuteReader method on the Command, the 
+DataReader is ready to return the results of the first SELECT query 
+immediately. When we call NextResult, we move to the results of the 
+second SELECT query. The second call to NextResult returns False because 
+there are no more row-returning queries to process, and we leave the 
+loop.
+
+		The other major change in behavior from ADO is the behavior of the 
+RecordsAffected property of the DataReader. Let’s assume that the INSERT 
+query and the UPDATE query each modify one record in the database. The 
+RecordsAffected property will return the sum of the records affected by 
+all action queries preceding the row-returning query that the DataReader 
+is currently fetching.
+
+	Executing a Query That Returns a Single Value:-
+		What if you want to execute a query and retrieve a single cell (one row, 
+one column) of data? Here are two examples of queries that return a 
+single value:
+
+		SELECT COUNT(*) FROM Customers
+		SELECT CompanyName FROM Customers WHERE CustomerID = 'ALFKI'
+
+		The Command object has a method designed for such queries: 
+ExecuteScalar. This method returns the value through the generic object 
+data type, which you can then convert to the desired data type, as shown 
+here:
+
+		string strConn = "Provider=SQLOLEDB;Data Source=(local)\\NetSDK;" +
+                 "Initial Catalog=Northwind;Trusted_Connection=Yes;";
+		OleDbConnection cn = new OleDbConnection(strConn);
+		cn.Open();
+		OleDbCommand cmd = cn.CreateCommand();
+		cmd.CommandText = "SELECT COUNT(*) FROM Customers";
+		int intCustomers = Convert.ToInt32(cmd.ExecuteScalar());
+
+		cmd.CommandText = "SELECT CompanyName FROM Customers " +
+   						  "WHERE CustomerID = 'ALFKI'";
+		string strCompanyName = Convert.ToString(cmd.ExecuteScalar());
+
+	Executing a Parameterized Query:-
+		string strConn, strSQL;
+		strConn = "Provider=SQLOLEDB;Data Source=(local)\\NetSDK;" +
+							"Initial Catalog=Northwind;Trusted_Connection=Yes;";
+		strSQL = "SELECT OrderID, CustomerID, EmployeeID, OrderDate " +
+						 "FROM Orders WHERE CustomerID = ?";
+		OleDbConnection cn = new OleDbConnection(strConn);
+		cn.Open();
+		OleDbCommand cmd = new OleDbCommand(strSQL, cn);
+		cmd.Parameters.Add("@CustomerID", OleDbType.WChar, 5);
+		cmd.Parameters[0].Value = "ALFKI";
+		OleDbDataReader rdr = cmd.ExecuteReader();
+
+		Once you’ve executed the query using the ExecuteReader method, you can 
+fetch the results of the query using the DataReader object, just as you 
+do with standard queries that don’t use parameters.
+	
+	For Stored Procedures:-
+		The standard way to call the stored procedure is to use the following 
+syntax:
+
+COREDeleteObjectByOidProc
+coredeleteobjectbyoidproc
+
+		{? = CALL MyStoredProc(?, ?, ?)}
+
+		The initial parameter marker represents the return value of the 
+procedure call and can be omitted if you’re not going to use the value 
+returned. Leaving off the return parameter changes the query’s syntax to 
+this:
+
+		{CALL GetCustomer(?)}
+
+		OleDbDataAdapter cmd = new OleDbDataAdapter();
+		cmd.CommandText = "{CALL GetCustomer(?)}";
+		cmd.CommandType = CommandType.Text;
+
+	CREATE PROCEDURE GetCustomer (@CustomerID nchar(5),
+                             @CompanyName nvarchar(40) OUTPUT, 
+                              @ContactName nvarchar(30) OUTPUT,
+                              @ContactTitle nvarchar(30) OUTPUT) AS
+		SELECT @CompanyName = CompanyName, @ContactName = ContactName,
+           @ContactTitle = ContactTitle
+           FROM Customers WHERE CustomerID = @CustomerID
+	    IF @@ROWCOUNT = 1
+		    RETURN 0
+	    ELSE
+	        RETURN -1
+
+		OleDbConnection cn = new OleDbConnection(strConn);
+		cn.Open();
+
+		OleDbCommand cmd = cn.CreateCommand();
+		cmd.CommandText = "{? = CALL GetCustomer(?, ?, ?, ?)}";
+
+		cmd.Parameters.Add("@RetVal", OleDbType.Integer);
+		cmd.Parameters.Add("@CustomerID", OleDbType.WChar, 5);
+		cmd.Parameters.Add("@CompanyName", OleDbType.VarWChar, 40);
+		cmd.Parameters.Add("@ContactName", OleDbType.VarWChar, 30);
+		cmd.Parameters.Add("@ContactTitle", OleDbType.VarWChar, 30);
+
+		cmd.Parameters["@ContactTitle"].Direction = ParameterDirection.Output;
+		cmd.Parameters["@RetVal"].Direction = ParameterDirection.ReturnValue;
+		cmd.Parameters["@CustomerID"].Value = "ALFKI";
+		cmd.Parameters["@CompanyName"].Direction = ParameterDirection.Output;
+		cmd.Parameters["@ContactName"].Direction = ParameterDirection.Output;
+
+		cmd.ExecuteNonQuery();
+		if (Convert.ToInt32(cmd.Parameters["@RetVal"].Value) == 0)
+				Console.WriteLine(cmd.Parameters["@CompanyName"].Value);
+		else
+				Console.WriteLine("Customer not found");
+
+	Executing a Query Within a Transaction:-
+		The Command object has a Transaction property that you must set in order 
+to execute your Command within a Transaction. In the previous chapter, 
+you saw how to create a Transaction object using the Command object’s 
+BeginTransaction method. The following code snippet shows how you can 
+execute a Command on that Transaction.
+
+		cn.Open();
+		OleDbTransaction txn = cn.BeginTransaction();
+		string strSQL = "INSERT INTO Customers (...) VALUES (...)";
+		OleDbCommand cmd = new OleDbCommand(strSQL, cn, txn);
+		int intRecordsAffected = cmd.ExecuteNonQuery();
+		if (intRecordsAffected == 1)
+		{
+				Console.WriteLine("Update succeeded");
+				txn.Commit();
+		}
+		else
+		{
+				//Assume intRecordsAffected = 0
+				Console.WriteLine("Update failed");
+				txn.Rollback();
+		}
+		Don’t forget to call the Commit or Rollback method on the Transaction 
+object (depending on whether you want to save or discard the actions 
+performed within the transaction).
+
+	GetSchemaTable Method:-
+		The data that GetSchemaTable returns might be a little difficult to 
+grasp initially. The GetSchemaTable method returns a DataTable with a 
+predefined structure. Each DataRow in the DataTable returned by this 
+method corresponds to a different column in the query results, and the 
+DataColumn objects represent properties or attributes for those columns.
+
+	Retrieving Database Schema Information:-
+		The OleDbConnection lets you retrieve schema information about your 
+database through the GetOleDbSchemaTable method. You supply a value from 
+the OleDbSchemaGuid enumeration to specify the type of schema 
+information you want, such as tables, columns, and procedures.
+
+		The GetOleDbSchemaTable method also requires a parameter called 
+Restrictions, which acts as a filter on the schema information that the 
+method returns. For example, rather than retrieving information for all 
+columns in your database, you can retrieve information for just the 
+columns in a particular table. The Restrictions parameter contains an 
+array of values. Each schema type allows a different set of 
+restrictions.
+		However, if you want to retrieve the columns from just a specific table, 
+you should use the Restrictions parameter and supply the name of the 
+table whose columns you want to examine. The member should have the 
+following structure:
+
+		{"TABLE_CATALOG", "TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME"}
+		
+		Therefore, you can use the following code to retrieve just the columns 
+from the Customers table:
+
+		string strConn = "Provider=SQLOLEDB;Data Source=(local)\\NetSDK;" +
+                 "Initial Catalog=Northwind;Trusted_Connection=Yes;";
+		OleDbConnection cn = new OleDbConnection(strConn);
+		cn.Open();
+		string strRestrictions;
+		object[] objRestrictions = new object[] {null, null, "Customers", null};
+		DataTable tbl;
+
+		tbl = cn.GetOleDbSchemaTable(OleDbSchemaGuid.Columns, objRestrictions);	
+
+		OleDbSchemaGuid.Columns. There is a member in the schema that you can 
+use to determine whether or not a column is an identity column, I 
+believe. The OleDbSchemaGuid layouts come from the OLE DB Schema Rowsets 
+and are doc'd in the OLE DB Programmer's Reference, part of the platform 
+SDK docs
+
+		I finally found a solution to this problem, in case anyone else ever
+		runs into it.
+
+		Turns out you have to use the flags in the COLUMN_FLAGS field to make 
+the determination about what the correct data type is for text fields.
+
+		The two specific flags that are relevant are DBCOLUMNFLAGS_ISFIXEDLENGTH 
+and DBCOLUMNFLAGS_ISLONG.
+
+		If DBCOLUMNFLAGS_ISFIXEDLENGTH is set, it's a fixed length field (Char 
+or WChar), otherwise it's variable length (VarChar or VarWChar).
+
+		If DBCOLUMNFLAGS_ISLONG is set, it's a long data type (LongVarChar or 
+LongVarWChar). 
+
+
+DATA ADAPTER
+-------------
+
+	The DataAdapter class acts as a bridge between the connected and 
+disconnected halves of the ADO.NET object model. You can use a DataAdapter 
+to pull data from your database into your DataSet.
+	
+	The DataAdapter is designed to work with disconnected data. Perhaps the best 
+example of this design is the Fill method. You don’t even need a live 
+connection to your database to call the Fill method. If you call the Fill 
+method on a DataAdapter whose connection to your database is not currently 
+open, the DataAdapter opens that connection, queries the database, fetches 
+and stores the results of the query into your DataSet, and then closes the 
+connection to your database.
+
+	The TableMappings property returns a DataTableMappingsCollection object that 
+contains a collection of DataTableMapping objects. Each object lets you 
+create a mapping between a table (or view or stored procedure) in your 
+database and the corresponding table name in your DataSet. The 
+Data­TableMapping object also has a ColumnMappings property that returns a 
+DataColumnMappingsCollection object, which consists of a collection of 
+DataColumnMapping objects. Each DataColumnMapping object maps a column in 
+your database to a column in your DataSet. 
+
+	We’re mapping the database’s Table "Table" to the DataSet object’s 
+Employees table, but the mapping information implies that it’s mapping Table 
+to Employees. This is because the DataAdapter really has no idea which table 
+it’s communicating with in the database. The DataAdapter can retrieve column 
+names from the result of the query using the DataReader but has no way of 
+determining the table name. As a result, the DataAdapter assumes that the 
+table name is Table, and the entry in the TableMappings collection maps 
+Table to Employees.
+	
+		OleDbDataAdapter da;
+		//Initialize DataAdapter.
+		DataTableMapping TblMap;
+		DataColumnMapping ColMap;
+		TblMap = da.TableMappings.Add("Table", "Employees");
+		ColMap = TblMap.ColumnMappings.Add("EmpID", "EmployeeID");
+		ColMap = TblMap.ColumnMappings.Add("LName", "LastName");
+		ColMap = TblMap.ColumnMappings.Add("FName", "FirstName");
+
+	Creating a DataAdapter:-
+		You can ensure that your DataAdapter objects use the same Connection 
+object by using the DataAdapter constructor that accepts a query string 
+and a Connection object.
+	
+			string strConn = "Provider=SQLOLEDB;Data Source=(local);" +
+                            "Initial Catalog=Northwind;Trusted_Connection=Yes;";
+			OleDbConnection cn = new OleDbConnection(strConn);
+			OleDbDataAdapter daCustomers, daOrders;
+			daCustomers = new OleDbDataAdapter("SELECT ... FROM Customers", cn);
+			daOrders = new OleDbDataAdapter("SELECT ... FROM Orders", cn);
+
+		
+		When you create a DataAdapter, you generally want to set its 
+SelectCommand property to a valid Command object. The following code 
+snippet sets the SelectCommand for a new DataAdapter.
+		
+		OleDbConnection cn = new OleDbConnection(strConn);
+		string strSQL = "SELECT CustomerID, CompanyName FROM Customers";
+		OleDbCommand cmd = new OleDbCommand(strSQL, cn);
+		OleDbDataAdapter da = new OleDbDataAdapter();
+		da.SelectCommand = cmd;
+
+		Retrieving Results:-
+			strSQL = "SELECT CustomerID, CompanyName, Phone FROM Customers";
+			OleDbDataAdapter da = new OleDbDataAdapter(strSQL, strConn);
+			DataSet ds = new DataSet();
+			da.Fill(ds);
+
+			In this code snippet, calling the Fill method creates a new 
+DataTable in the DataSet. The new DataTable contains columns that 
+correspond to the columns returned by the query—CustomerID, 
+CompanyName, ContactName, and Phone.
+
+			Calling the Fill method in the previous example created a new 
+DataTable in the DataSet. The new DataTable has columns named 
+CustomerID, CompanyName, ContactName, and Phone, but the name of the 
+DataTable object is Table, NOT Customers.
+
+			We can add an item to this TableMapping collection to inform the 
+DataAdapter that we want to map the results of the query to a 
+DataTable named Customers, as shown here:
+
+				Dim da As New OleDbDataAdapter(strSQL, strConn)
+				da.TableMappings.Add("Table", "Customers")
+				Dim ds As New DataSet()
+				da.Fill(ds)
+
+			Rather than having to add an entry to the DataAdapter object’s 
+Table­Mappings collection, you can specify a table name in the Fill 
+method:
+				DataAdapter.Fill(DataSet, "MyTableName")
+
+				I often use this Fill method to fill a table in my DataSet 
+without having to use the TableMappings collection.
+
+			Making Multiple Calls to Fill Method:-
+				DataSet ds = new DataSet();
+				da.Fill(ds, "Customers");
+				...
+				da.Fill(ds, "Customers");
+
+				By calling the Fill method twice, you’re asking the DataAdapter 
+to execute the specified query and to store the results in the 
+DataSet twice. The first call to the Fill method creates a new 
+table within the DataSet called Customers. The second call to 
+the Fill method copies the results of the query into that same 
+table in the DataSet. Thus, each customer will appear twice in 
+the DataSet.
+
+				With only this snippet of code, the DataAdapter has no way to 
+know which customers are duplicates. Database administrators 
+generally define primary keys on tables in a database. One of 
+the benefits of this practice is that it prevents users from 
+creating duplicate rows. The DataTable object has a Primary­Key 
+property. If the DataTable that the DataAdapter is filling has a 
+primary key, the DataAdapter will use this key to determine 
+which rows are duplicates. If we define a primary key on the 
+Customers DataTable in the DataSet before we call the 
+DataAdapter object’s Fill method the second time, the 
+DataAdapter will locate the duplicate rows and discard the old 
+values.
+				However, rows deleted from the database will not be removed from 
+your DataTable.
+
+				And now we’ve come full circle. If you need to refresh all of 
+the data, you should clear the DataSet or DataTable and call the 
+DataAdapter object’s Fill method again.
+
+			Working with Batch Queries:-
+				SELECT CustomerID, CompanyName, ContactName, Phone
+					FROM Customers WHERE CustomerID = 'ALFKI';
+				SELECT OrderID, CustomerID, EmployeeID, OrderDate 
+					FROM Orders WHERE CustomerID = 'ALFKI'
+	
+				If you build a DataAdapter with the query shown above and fetch 
+the results into a DataSet using the code
+
+					DataAdapter.Fill(DataSet);
+
+				you’ll fetch the results into two DataTable objects within the 
+DataSet. The results of the first portion of the query, which 
+references the Customers table, will be stored in a DataTable 
+named Table. The results of the second portion, which references 
+the Orders table, will be stored in a DataTable named Table1. 
+Chances are, you’ll want to choose more descriptive names for 
+your DataTable objects.
+
+					OleDbDataAdapter da = new OleDbDataAdapter(strSQL, strConn);
+					da.TableMappings.Add("Table", "Customers");
+					da.TableMappings.Add("Table1", "Orders");
+					DataSet ds = new DataSet();
+					da.Fill(ds);
+		
+					Or using the AddRange method:-
+
+					OleDbDataAdapter da = new OleDbDataAdapter();
+					//Initialize DataAdapter.
+					DataTableMapping TblMap;
+					DataColumnMapping[] ColMapArray;
+					TblMap = da.TableMappings.Add("Table", "Employees");
+					ColMapArray = new DataColumnMapping[] 
+								  {new DataColumnMapping("EmpID", "EmployeeID"),
+								   new DataColumnMapping("LName", "LastName"),
+								   new DataColumnMapping("FName", "FirstName")};
+			
+					TblMap.ColumnMappings.AddRange(ColMapArray);
+
+					Also:
+					 OleDbDataAdapter da = new OleDbDataAdapter(strSQL,strConn);
+						da.TableMappings.Add("Table", "Customers");
+						da.TableMappings.Add("Table1", "Orders");
+						
+						DataColumnMappingCollection cm =       					
+		            da.TableMappings[0].ColumnMappings;
+						cm.Add("CustomerID", "CustomerID");
+
+						DataSet ds = new DataSet();
+						da.Fill(ds);
+
+				If you have stored procedures that return result sets, you can 
+use a DataAdapter to fetch those results into a DataSet or 
+DataTable. Say you have the following stored procedure 
+definition:
+				You can fetch the results of the stored procedure call into a 
+DataSet by using either of the following query strings:
+
+						{CALL GetAllCustomers}
+
+			The Fill method also returns a 32-bit integer that indicates the 
+number of rows the DataAdapter retrieved.
+				
+				OleDbDataAdapter da = new OleDbDataAdapter(strSQL, strConn);
+				DataSet ds = new DataSet();
+				int intRowsRetrieved = da.Fill(ds);
+		
+		AcceptChangedDuringFill:-
+			The DataAdapter object has an AcceptChangesDuringFill property that 
+accepts a Boolean value. This property, which is set to True by 
+default, controls the RowState of the rows retrieved by the 
+DataAdapter. If the property is set to True, the new DataRow objects 
+will each have a RowState of Unchanged. Setting 
+AcceptChangesDuringFill to False causes the new DataRow objects to 
+have a RowState of New.
+
+			This means that if you set AcceptChangesDuringFill to False, you can 
+query a table in one database and then pass the DataSet to a 
+DataAdapter that’s set to communicate with another database and 
+insert all of the newly retrieved rows into this other database.
+
+
+		FillSchema Method:-
+			The FillSchema method lets you retrieve schema information about 
+your query before executing it. Like the Fill method, the FillSchema 
+method retrieves names and data types for each of the columns in 
+your query. 
+			
+			FillSchema also retrieves information on whether a column can accept 
+Null values and sets the AllowDBNull property of the DataColumn 
+objects it creates accordingly.
+
+			To help you determine how to update your data store, the FillSchema 
+method also attempts to generate a primary key on your DataTable. 
+The logic for this operation is somewhat complex, but I’ll try to 
+simplify it. Once the DataAdapter finds that the table contains a 
+primary key (or unique index if there is no primary key), it checks 
+the results of the query to locate the column(s) specified in the 
+primary key (or unique index). If the DataAdapter locates the 
+column(s), it sets that column or columns as the primary key in the 
+DataTable. Otherwise, the DataAdapter does not create a primary key 
+on the DataTable.
+
+			// Create a DataAdapter for each of the tables we're filling
+			SqlDataAdapter dataAdapter =
+			new SqlDataAdapter("SELECT * FROM CUSTOMER",conn);
+			// Tell the DataAdapter to add the Schema and include the
+			// primary key information
+			dataAdapter.MissingSchemaAction = MissingSchemaAction.AddWithKey;
+			// Create your blank DataSet
+			DataSet dataSet = new DataSet();
+			// Create a new DataTable in the DataSet and call it
+			dataAdapter.FillSchema(dataSet,	SchemaType.Mapped, "Customers");
+			foreach (DataColumn col in Authors.Columns)
+			{
+				Console.WriteLine("{0}", col.ColumnName );
+				Console.WriteLine(" Mapping:\t{0}", col.ColumnMapping );
+				Console.WriteLine(" Type:\t\t{0}", col.DataType.Name );
+				Console.WriteLine(" Default:\t{0}", col.DefaultValue );
+				Console.WriteLine(" ReadOnly?:\t{0}", col.ReadOnly );
+				Console.WriteLine(" Unique?:\t{0}", col.Unique );
+				Console.WriteLine(" Max Length:\t{0}",col.MaxLength );
+			}
+
+	GetFillParameters Method:-
+		The GetFillParameters method acts as a shortcut to the Parameters 
+collection of the DataAdapter object’s SelectCommand, with one minor 
+difference. GetFillParameters returns the parameter information as an 
+array of IParameter objects rather than the Parameter type for the 
+specific .NET Data Provider (such as OleDbParameter or SqlParameter). 
+Unless you need to check or set the parameters’ size, precision, or 
+scale properties, you’ll be able to access your parameters using the 
+GetFillParameters method, as shown here:
+			
+			string strSQL = "SELECT CustomerID, CompanyName FROM Customers " +
+                "WHERE CustomerID LIKE ?";
+			
+			OleDbDataAdapter da = new OleDbDataAdapter(strSQL, strConn);
+			da.SelectCommand.Parameters.Append("@CustomerID", 					
+									OleDbType.VarWChar, 5);
+			da.GetFillParameters[0].Value = "ALFKI";
+
+
+	Events of the OleDbDataAdapter Object :-
+	Event			Description
+	-----------------------------
+	FillError		Fires when the DataAdapter encounters an error 				
+				filling your DataSet or DataTable 
+	RowUpdating		Fires before submitting a modified row to your database
+	RowUpdated		Fires after submitting a modified row to your database
+ 
+
+		DataRow:-
+			If you were writing code using the DataReader object, you could 
+check its FieldCount property to determine the number of columns. 
+You could then use the GetName and Item properties to retrieve the 
+name and value for each column. However, the DataRow does not have a 
+counterpart to the DataReader object’s FieldCount property.
+
+			Instead, the DataRow object exposes a Table property. This property 
+returns the DataTable that contains the DataRow. You can use this 
+property to get back to the DataTable to retrieve the total number 
+of columns as well as the name of each column.
+
+			static void DisplayRow(DataRow row)
+			{
+					DataTable tbl = row.Table;
+					foreach (DataColumn col in tbl.Columns)
+							Console.WriteLine("\t" + col.ColumnName + ": " + 
+row[col]);
+			}
+
+
+	The DataTable Object’s Constraints Collection:-
+		You can also validate data in your DataSet by setting properties of the 
+Data­Table object. The ADO.NET object model includes two classes that 
+you can use to define constraints in a DataTable. These classes, 
+UniqueConstraint and Foreign­KeyConstraint, are derived from the 
+Constraint class. The DataTable exposes a Constraints property that you 
+can use to add to, modify, or examine the constraints on the DataTable.
+
+	Adding Tables to a DataSet Object’s Tables Collection:-
+		DataSet ds = new DataSet();
+		DataTable tbl = ds.Tables.Add("Customers");
+
+		You can determine whether a DataTable resides within a DataSet by 
+checking the DataTable object’s DataSet property. If the DataTable 
+resides in a DataSet object’s Tables collection, the DataSet property 
+returns that DataSet. Otherwise, the property returns Nothing or null, 
+depending on your language of choice. The DataSet property of the 
+DataTable object is read-only.
+
+		It is also worth noting that a DataTable can reside in at most one 
+DataSet. If you want to add a DataTable to multiple DataSet objects, you 
+must use either the Copy or Clone method. The Copy method creates a new 
+DataTable with the same structure that contains the same set of rows as 
+the original DataTable. The Clone method creates a new DataTable with 
+the same structure, as the Copy method does, but it creates a DataTable 
+that contains no rows.
+
+	Adding Columns to Table:-
+		DataSet ds = new DataSet();
+		DataTable tbl = ds.Tables.Add("Orders");
+		DataColumn col = tbl.Columns.Add("OrderID", typeof(int));
+
+		col.AllowDBNull = false;
+		col.MaxLength = 5;
+		col.Unique = true;
+	
+			Adding Primary Key:-
+			The PrimaryKey property contains an array of DataColumn objects. So 
+you can’t simply set the property to the name of the column or 
+columns that you want to use for your primary key.
+
+				DataSet ds = new DataSet();
+				DataTable tbl;
+				//Create the Customers DataTable.
+				tbl = ds.Tables.Add("Customers");
+				tbl.Columns.Add("CustomerID", typeof(string));
+				tbl.PrimaryKey = new DataColumn[] {tbl.Columns["CustomerID"]};
+
+		Adding a New DataRow:-
+			Each DataTable object has a Rows property that returns a 
+DataRow­Collection object, which contains a collection of DataRow 
+objects. As with most collections, you can use the DataRowCollection 
+object’s Add method to add a new object to the collection. However, 
+DataRow objects differ from other ADO.NET objects in how you create 
+them.
+			
+			DataTable object has a NewRow method that returns a new DataRow 
+object that contains information about each of the columns in the 
+table.
+
+			The NewRow method of the DataTable creates a new row, but it does 
+not add that row to the DataTable. Once you’ve supplied values for 
+all the desired columns in your new row and you’re ready to add it 
+to the DataTable, you use the Add method of the DataRowCollection 
+and supply your new row
+
+				DataRow row = ds.Tables["Customers"].NewRow();
+				row["CustomerID"] = "ALFKI";
+				ds.Tables["Customers"].Rows.Add(row);
+
+			The DataTable object offers a second way to add a new row to the 
+table: the LoadDataRow method. To use this method, you supply an 
+array of values in the first parameter. 
+
+				object[] aValues = {"ALFKI", "Alfreds Futterkiste", "Maria 		
+					Anders", "030-0074321"};
+				ds.Tables["Customers"].LoadDataRow(aValues, false);
+	
+			When you submit changes to your database by calling the Update 
+method of the DataAdapter object, the DataAdapter examines the 
+RowState of each Data­Row to determine how to update the database—by 
+modifying an existing row, adding a new row, or deleting an existing 
+row. If you pass a value of True to the second parameter in 
+LoadDataRow, the new DataRow will have a RowState of Unmodified, 
+which means that the row does not contain a pending change that the 
+DataAdapter would submit to the database. Passing a value of False 
+into this parameter, as shown in the following code snippet, causes 
+the new row to have a RowState of Added.
+
+		Updating a Row:-
+			First way, is to update using the default Item method:
+				DataRow rowCustomer;
+				rowCustomer = ds.Tables["Customers"].Rows.Find("ANTON");
+				if (rowCustomer == null)
+						//Customer not found!
+				else {
+						//rowCustomer.BeginEdit();
+						rowCustomer["CompanyName"] = "NewCompanyName";
+						rowCustomer["ContactName"] = "NewContactName";
+						//rowCustomer.EndEdit();
+				}
+				Using BeginEdit and EndEdit lets you buffer the changes to the 
+row. Calling EndEdit saves the changes to the row. If you decide 
+that you don’t want to keep the changes, you can call CancelEdit 
+instead to undo the changes and the row will revert to its state 
+at the time you called BeginEdit.
+
+				There’s another difference between these two ways of modifying a 
+row. The DataTable has events such as RowChanging, RowChanged, 
+ColumnChanging, and ColumnChanged that you can use to examine 
+the changes to a row or column. When, or if, these events fire 
+depends on how you modify a row—with or without calling 
+BeginEdit and EndEdit. In the first example, the contents of the 
+row changed each time we modified a column in the row. The 
+DataTable object’s events fire each time you modify the contents 
+of a column. Using BeginEdit blocks the events from occurring 
+until you call EndEdit. (If you call CancelEdit instead of 
+EndEdit, the buffered changes will be discarded, and because the 
+row is not updated, the events will not fire.)
+				
+				The third way to modify the contents of a row is by using the 
+ItemArray property. Like the Item property, this property can be 
+used to retrieve or modify the contents of the row. The 
+difference between the properties is that the Item property 
+works with one column at a time and the ItemArray property 
+returns and accepts an array in which each item corresponds to a 
+column.
+
+					object[] aCustomer = {null, "NewCompanyName", 
+                      "NewContactName", "NewPhoneNo"};
+					DataRow rowCustomer;
+					rowCustomer = ds.Tables["Customers"].Rows.Find("ALFKI");
+					rowCustomer.ItemArray = aCustomer;
+
+					if (rowCustomer.IsNull("Phone"))
+						Console.WriteLine("It's Null");
+					
+					To set the value of a column in a DataRow to Null, use the 
+Value property of the DBNull class: 
+						rowCustomer["Phone"] = DBNull.Value;
+
+			DataTable tbl = new DataTable("Customers");
+			tbl.Columns.Add("CustomerID", typeof(string));
+			tbl.Columns.Add("CompanyName", typeof(string));
+			DataRow row;
+
+			//Create a new row using the LoadDataRow method.
+			row = tbl.LoadDataRow(new object[] {"ABCDE", 
+												"Initial CompanyName"}, true);
+
+			//Modify the contents of the DataRow.
+			//row.RowState will now return Modified.
+			//The 'Original' value for the column is "Initial CompanyName."
+			row["CompanyName"] = "New CompanyName";
+
+			//Call BeginEnit and modify the CompanyName column again.
+			row.BeginEdit();
+			row["CompanyName"] = "Even Newer CompanyName!";
+
+			//Display the different versions of the column.
+			Console.WriteLine("Proposed: " +
+							  row["CompanyName", DataRowVersion.Proposed]);
+			Console.WriteLine("Current:  " +
+							  row["CompanyName", DataRowVersion.Current]);
+			Console.WriteLine("Original: " +
+							  row["CompanyName", DataRowVersion.Original]);
+
+		Run the code, and you’ll see that the proposed value for the column is 
+"Even Newer CompanyName!", the current value is New CompanyName, and the 
+original value is Initial CompanyName.
+
+		You can call the EndEdit method to accept the edit. The current value of 
+the column will be set to the proposed value. The original value for the 
+column will remain the same.
+
+		You can call the CancelEdit method to discard the edit. The current and 
+original values of the column will remain the same.
+
+		Keep in mind that while you’re editing the contents of a row after using 
+the BeginEdit method, the Item method will return the proposed values 
+for the columns by default.
+
+	Using Transactions:-
+
+		The trick here is setting the transaction to the 
+DataAdapter.SelectCommand (which may seem a bit counterintuitive). 
+Remember, when the CommandBuilder creates the UPDATE, DELETE, and INSERT 
+commands, it mimics the command settings from the Data- 
+Adapter.SelectCommand.
+
+		SqlCommandBuilder custBldr = new SqlCommandBuilder(custDA);
+		SqlCommandBuilder invBldr = new SqlCommandBuilder(invDA);
+		// Update the database
+		SqlTransaction tx = null;
+		try
+			{
+			// We must open the connection to start a transaction
+			conn.Open();
+			// Add a transaction to the Select command
+			// so that the CommandBuilder will propagate it
+			// to the other commands
+			tx = conn.BeginTransaction(IsolationLevel.Serializable);
+			invDA.SelectCommand.Transaction = tx;
+			custDA.SelectCommand.Transaction = tx;
+
+			// Deletes
+			// Using reverse order to delete the children first
+
+			invDA.Update(invTable.GetChanges(DataRowState.Deleted));
+			custDA.Update(custTable.GetChanges(DataRowState.Deleted));
+
+			// Inserts and updates
+			// Using forward order to insert/update the parents first
+
+			custDA.Update(custTable.GetChanges(DataRowState.Added |
+												DataRowState.Modified));
+			invDA.Update(invTable.GetChanges(DataRowState.Added |
+												DataRowState.Modified));
+
+			// If we've gotten this far, we should be able to
+			// commit the transaction
+			tx.Commit();
+			}
+			catch (SqlException ex)
+			{
+			Console.WriteLine("Sql Error: {0}", ex.Message);
+			// Roll back the transaction if an error occurs
+			if (tx != null) tx.Rollback();
+			}
+			finally
+			{
+			if (conn.State != ConnectionState.Closed)
+				conn.Close();
+			}
+
+		Deleting a DataRow:-
+			Deleting a row is simpler than modifying one. You simply call the 
+Delete method on the DataRow. However, deleting the row does not 
+remove it from the DataTable. Instead, ADO.NET marks the row as a 
+pending deletion.
+					
+					DataRow rowCustomer = 
+ds.Tables["Customers"].Rows.Find("ALFKI");
+					rowCustomer.ItemArray = aCustomer;
+					ds.Tables["Customers"].Remove(rowCustomer);
+			
+			In addition, the DataSet and DataTable classes each have a Clear 
+method that you can use to remove all DataRow objects from the 
+DataSet or DataTable while preserving its structure.
+
+		Detecting Row Changes:-
+			ADO.NET stores this information in a property of the DataRow called 
+RowState, which uses the values in the DataRowState enumeration. 
+(See Table 6-1.) By checking this property, you can determine 
+whether the row has been changed, along with the type of change 
+(modification, insertion, or deletion) the row contains.
+
+				DataRowState Enumeration
+				-------------------------
+				Unchanged 2		The row does not contain any pending changes.
+				Detached 1		The row is not a member of a DataTable.
+				Added 4			The row has been added to the DataTable but does 
+				not exist in the database.
+				Modified 16		The row contains pending changes.
+				Deleted 8		The row is a pending deletion.
+ 
+			Let’s say that we’ve looped through the contents of your DataTable 
+and, thanks to the RowState property, we’ve located a modified row. 
+You’ve seen how to use the Item property of the DataRow to examine 
+the contents of the columns in the row. You can also use the Item 
+property to determine what the contents of the columns were before 
+you modified the row.
+
+			The Item property accepts a second optional parameter from the 
+DataRowVersion enumeration, as described in Table 6-3.
+				
+				DataRowVersion Enumeration
+				---------------------------
+				Current 512			The current value stored in the column
+				Original 256		The original value stored in the column
+				Proposed 1024		The proposed value for the column (valid 	
+					only while editing a row using BeginEdit)
+				Default 1536		Default action
+ 
+			Generally speaking, the DataRow has two “versions”—what’s currently 
+stored in the row and what was originally stored in the row. You’ll 
+usually need both sets of information to locate the row. After 
+you’ve updated a row, you can check the current contents of a column 
+as well as the original contents of a column. The following code 
+changes the contents of the CompanyName column in a DataRow and then 
+retrieves both the current (new) value and the original value of the 
+column.
+
+				DataRow rowCustomer;
+				rowCustomer = ds.Tables["Customers"].Rows.Find("ALFKI");
+				rowCustomer["CompanyName"] = "NewCompanyName";
+				string strNewCompanyName, strOldCompanyName;
+				Console.WriteLine(rowCustomer["CompanyName", 
+DataRowVersion.Current]);
+				Console.WriteLine(rowCustomer["CompanyName", 
+DataRowVersion.Original]);
+
+			Performing a successful edit changes the current value but does not 
+affect the original value. Calling CancelEdit resets the current 
+value to the value before BeginEdit is called, which is not 
+necessarily the same as the original value.
+
+			After you’ve deleted a row, you’ll receive an exception if you try 
+to examine its current values, but you can still access its original 
+values.
+
+			If you’re not in the process of editing a row, calling Item and 
+omitting the optional parameter is equivalent to supplying the 
+DataRowVersion.Current constant for the optional parameter. However, 
+if you’re in the process of editing a row and you omit the optional 
+parameter on the Item property, you’ll receive the “proposed” 
+version for the column.
+
+	Accept & RejectChanges Method:-
+
+		When you modify the contents of a DataRow object, ADO.NET will mark the 
+DataRow object as having a pending change and set the RowState property 
+of the DataRow object to the appropriate value—Added, Modified, or 
+Deleted. ADO.NET will also maintain both the original values and the 
+current values for the contents of the DataRow.
+
+		If you call the AcceptChanges method on your DataSet, ADO.NET will 
+accept all pending changes stored in the DataRow objects in your 
+DataSet. Any rows whose RowState property is set to Added or Modified 
+will have their RowState property set to Unchanged. Doing this will also 
+reset the “original” values for the DataRow to the current contents of 
+the DataRow. Any DataRow objects marked as Deleted will be removed from 
+your DataSet when you call AcceptChanges.
+
+	GetChanges Method:-
+		The DataSet object’s GetChanges method returns a new DataSet with the 
+same structure as the original DataSet and also includes all rows from 
+the original DataSet that contain pending changes.
+
+	Reset Method :-
+		The DataSet object’s Reset method returns the DataSet to its original, 
+uninitialized state. If you want to discard an existing DataSet and 
+start working with a new DataSet, use the Reset method rather than 
+create a new instance of a DataSet
+
+	DefaultView Table Property:-
+		If you bind a control to your DataTable, the control will actually bind 
+to the DataView object returned by the DataTable object’s DefaultView 
+property.
+			
+			tblCustomers.DefaultView.RowFilter = "Country = 'Spain'";
+			gridCustomers.DataSource = tblCustomers;
+
+	Compute Method:-
+		You can use the Compute method to perform an aggregate query on a single 
+column in your DataTable based on the search criteria you specify.
+
+			string strSQL, strConn;
+			strConn = "Provider=SQLOLEDB;Data Source=(local)\\NetSDK;" +
+								"Initial 
+Catalog=Northwind;Trusted_Connection=Yes;";
+			strSQL = "SELECT OrderID, ProductID, Quantity FROM [Order Details]";
+			OleDbDataAdapter da = new OleDbDataAdapter(strSQL, strConn);
+			DataTable tbl = new DataTable("Order Details");
+			da.Fill(tbl);
+			int intNumChaiOrders;
+			Int64 intNumChaiUnits;
+			intNumChaiOrders = (int) tbl.Compute("COUNT(OrderID)", 
+							 "ProductID = 1");
+			intNumChaiUnits = (Int64) tbl.Compute("SUM(Quantity)", 
+							  "ProductID = 1");
+
+		Data Relations:-
+			You’ve learned that when you create a DataRelation, ADO.NET will by 
+default ensure that your DataSet contains a UniqueConstraint and a 
+ForeignKey­Constraint whose signatures match that of your new 
+DataRelation. If such constraints already exist within the DataSet, 
+the new DataRelation will reference them. Otherwise, ADO.NET will 
+create the new constraints implicitly.
+
+			There are constructors that let you specify that you do not want 
+ADO.NET to create constraints for your Data­Relation. You can use 
+these constructors when you want to use a DataRelation but do not 
+want the corresponding constraints in your DataSet.
+
+			Sometimes the parent and child tables in a relationship are one and 
+the same. Take the Employees table in the Northwind database. This 
+table has an Employee­ID column that contains the employee’s ID and 
+a ReportsTo column that contains the ID of the employee’s manager. 
+The Employees table also has a foreign key constraint defined on the 
+ReportsTo column to ensure that it accepts values from only the 
+EmployeeID column.
+
+			oCon = new OleDbConnection(sCon);
+			oCon.Open();
+			string auSQL = "Select au_id, au_lname, au_fname From authors";
+			string titleSQL = "Select title_id, title From titles";
+			string taSQL = "Select au_id, title_id From titleauthor";
+
+			OleDbDataAdapter daAuthors = new OleDbDataAdapter(auSQL, oCon);
+			OleDbDataAdapter daTitle = new OleDbDataAdapter(titleSQL, oCon);
+			OleDbDataAdapter daTa = new OleDbDataAdapter(taSQL, oCon);
+
+			DataSet ds = new DataSet();
+			daAuthors.Fill(ds, "authors");
+			daTitle.Fill(ds, "titles");
+			daTa.Fill(ds, "titleauthors");
+			
+			ds.Relations.Add("authors_titleauthors", 
+ds.Tables["authors"].Columns["au_id"],
+						ds.Tables["titleauthors"].Columns["au_id"], false);
+
+			ds.Tables["authors"].Columns.Add("Books", typeof(int),
+							"Count(Child(authors_titleauthors).au_id)");
+
+			ds.Relations.Add("titles_titleauthors", 
+ds.Tables["titles"].Columns["title_id"],
+					ds.Tables["titleauthors"].Columns["title_id"], false);
+
+			ds.Tables["titleauthors"].Columns.Add("title", typeof(string), 
+						"Parent(titles_titleauthors).title");
+
+			foreach(DataRow rowAuthor in ds.Tables["authors"].Rows)
+			{
+				Console.WriteLine(rowAuthor["au_fname"] + " " + 
+rowAuthor["au_lname"] + ", Written: " + rowAuthor["Books"]);
+
+				foreach(DataRow rowTitle in 
+rowAuthor.GetChildRows("authors_titleauthors"))
+					Console.WriteLine("\t" + rowTitle["title"])
+			}
+	
+		Using DataRelation Objects in Expression-Based DataColumn Objects:-
+			You can also use expression-based DataColumn objects in conjunction 
+with DataRelation objects to calculate aggregate information such as 
+the number of child rows and the sums and averages of child data.
+
+			The first of these two DataColumn objects returns the number of 
+child rows. In order to gather this information, the code sets the 
+Expression property of the DataColumn to the following:
+	
+				Count(Child.ProductID)
+
+			You can use this syntax to refer to child data if the DataTable has 
+only one related child DataTable. If you have multiple related child 
+DataTable objects, you can use the following syntax:
+
+				Count(Child(RelationName).ProductID)
+
+			The final expression-based DataColumn that the code creates returns 
+the sum of the ItemTotal DataColumn in the child DataTable. The 
+value of this Data­Column object’s Expression property is similar to 
+the previous DataColumn:
+
+				Sum(Child.ItemTotal)
+
+			Join-Based Query:-
+				You can use a DataTable to store the results of a query that 
+returns data from multiple tables, but I generally wouldn’t 
+recommend it. As you’ll see in Chapter 10, the DataAdapter 
+object is designed to examine the changes stored in a single 
+DataTable and submit them to a specific table in your database. 
+Thus, if you want to modify the contents of your DataTable 
+objects, you’ll want to separate the data into distinct 
+DataTable objects that parallel the tables in your database.
+
+				So, what to do with join queries? The simple answer is to split 
+them up into queries that return data from distinct tables. 
+
+				A Join Query:-
+				
+				SELECT C.CustomerID, C.CompanyName, C.ContactName, C.Phone,
+				   O.OrderID, O.EmployeeID, O.OrderDate, 
+				   D.ProductID, D.Quantity, D.UnitPrice 
+				   FROM [Order Details] D, Orders O, Customers C 
+				   WHERE D.OrderID = O.OrderID AND O.CustomerID = C.CustomerID
+						 AND C.Country = N'USA'
+
+				Split into	Separate Queries:-
+				
+				SELECT CustomerID, CompanyName, ContactName, Phone 
+				   FROM Customers WHERE C.Country = N'USA'
+
+				SELECT O.OrderID, O.CustomerID, O.EmployeeID, O.OrderDate
+				   FROM Orders O, Customers C 
+				   WHERE O.CustomerID = C.CustomerID AND C.Country = N'USA'
+		
+				SELECT D.OrderID, D.ProductID, D.Quantity, D.UnitPrice
+				   FROM [Order Details] D, Orders O, Customers C 
+				   WHERE D.OrderID = O.OrderID AND O.CustomerID = C.CustomerID
+						 AND C.Country = N'USA'
+		
+	Searching & Filtering DataTable:-
+		The DataTable object exposes two methods that you can use to locate data 
+based on search criteria. One method, Find, lets you locate a row based 
+on its primary key values. The other, Select, acts as more of a filter, 
+returning multiple rows of data based on more flexible search criteria.
+
+		Locating a Row by Its Primary Key Values:-
+			Although the Find method is designed for DataTable objects, it’s 
+actually exposed by the DataRowCollection class. The Find method 
+accepts an object that contains the primary key value for the row 
+you want to locate. Because primary key values are unique, the Find 
+method can return at most one DataRow.
+
+				string strConn, strSQL;
+				strConn = "Provider=SQLOLEDB;Data Source=(local);" + 
+						"Initial Catalog=Northwind;Trusted_Connection=Yes;";
+				strSQL = "SELECT CustomerID, CompanyName, ContactName, Phone " +
+								 "FROM Customers";
+				OleDbDataAdapter da = new OleDbDataAdapter(strSQL, strConn);
+				DataTable tbl = new DataTable();
+				da.Fill(tbl);
+				tbl.PrimaryKey = new DataColumn[] {tbl.Columns["CustomerID"]};
+
+				DataRow row = tbl.Rows.Find("ALFKI");
+				if (row == null)
+						Console.WriteLine("Row not found!");
+				else
+						Console.WriteLine(row["CompanyName"]);
+		
+				Overloaded:-
+					tbl.PrimaryKey = new DataColumn[] {tbl.Columns["OrderID"], 
+	                                   tbl.Columns["ProductID"]};
+
+					object[] objCriteria = new object[] {10643, 28};
+					DataRow row = tbl.Rows.Find(objCriteria);
+					if (row == null)
+							Console.WriteLine("Row not found!");
+					else
+							Console.WriteLine(row["Quantity"] + " – " + 
+row["UnitPrice"]);
+
+			Dynamic Searching Using Select:-
+				DataRow[] aRows = tbl.Select("Country = 'USA' AND City <> 
+'Seattle'");
+				foreach (DataRow row in aRows)
+						Console.WriteLine(row["CompanyName"] + " – " + 
+row["City"] + " – " + row["Country"]);
+
+				If you build search criteria dynamically, you must be sure to 
+search your strings for delimiters. Use the Replace method of 
+the String class to handle such situations. The following code 
+snippet builds a string for the Select method and uses the 
+Replace method of the String class to replace single quotes with 
+two single quotes in the string:
+
+					strCriteria = "LastName = '" + strLastName.Replace("'", 
+"''") + "'";
+
+		Specifying the RowState of the Rows to Search:-
+			As you learned in Chapter 6, the DataSet supports caching changes. 
+What if you want to perform a search against just the modified rows 
+in a DataTable?
+
+			You can use an overloaded Select method to specify a value from the 
+DataViewRowState enumeration. Think of this value as an added filter 
+to your search criteria. Say you want to examine just the modified 
+and deleted rows in a DataTable. You can use the ModifiedOriginal 
+and Deleted values from the Data­ViewRowState enumeration and use 
+empty strings for the filter and sort parameters.
+			
+				DataViewRowState dvrs;
+				dvrs = DataViewRowState.ModifiedOriginal ¦ 						
+				DataViewRowState.Deleted;
+				DataRow[] aRows = tbl.Select("", "", dvrs);
+				foreach (DataRow row in aRows)
+						Console.WriteLine(row["CompanyName", 
+DataRowVersion.Original]);
+
+	DataView Object
+	---------------
+		The DataView object also has a constructor whose signature more closely 
+matches the DataTable object’s Select method. This more advanced 
+constructor sets the Table, RowFilter, Sort, and RowStateFilter 
+properties of the DataView in a single line of code.
+
+			DataTable tbl = new DataTable("Customers");
+			DataViewRowState dvrs;
+			dvrs = DataViewRowState.ModifiedOriginal Or							
+							DataViewRowState.Deleted;
+			DataView vue;
+
+			vue = new DataView();
+			vue.Table = tbl;
+			vue.RowFilter = "Country = 'USA'";
+			vue.Sort = "City DESC";
+			vue.RowStateFilter = dvrs;
+
+			vue = new DataView(tbl, "Country = 'USA'", "City DESC", dvrs);
+
+		Using the RowStateFilter Property:-
+			The RowStateFilter property accepts values from the DataViewRowState 
+enumeration. You can think of the enumeration as a combination of 
+the DataRowState property of the DataRow object and the 
+DataRowVersion enumeration. The property acts as a dual filter. For 
+example, setting the DataView object’s RowStateFilter property to 
+ModifiedOriginal means that only modified rows will be visible 
+through the DataView and that you’ll see the original values of 
+those rows.
+
+			DataViewRowState Enumerations:-
+			Value				Description 
+			--------------------------------
+			Added				Added rows are included.
+			CurrentRows			Nondeleted rows are included. (Default)
+			Deleted				Deleted rows are included.
+			ModifiedCurrent		Modified rows are included; current values are 
+                                visible.
+			ModifiedOriginal	Modified rows are included; original values are 
+                                visible.	  
+			None				No rows are included.
+			OriginalRows		Deleted, modified, and unmodified rows are 
+                                included; original values are visible.
+			Unchanged			Unmodified rows are included.
+ 
+		Using the DataRowView Object:-
+			If you use the DataTable object’s Select method and specify 
+ModifiedOriginal, the method will return only modified rows. 
+However, as you saw in the earlier code snippet illustrating the 
+Select method, we still had to specify that we wanted to retrieve 
+original values from the row in calls to the DataRow objects 
+returned.
+
+			This extra step is not required when you use the DataView because 
+the DataView returns data using its own specialized object: a 
+DataRowView. The DataRowView offers much of the same functionality 
+as the DataRow. It exposes a default Item property that you can use 
+to access the contents of a column by supplying either a column name 
+or the index of a column. You can examine and modify the contents of 
+a row using the Item property, but only one version of the row’s 
+data is available through the DataRowView—the version you specify in 
+the DataView object’s DataRowVersion property.
+
+			The following code snippet shows how to use the DataView object to 
+return a DataRowView object and how to use the DataRowView object to 
+examine data from a row:
+				
+				DataView vue;
+				vue = new DataView(tbl);
+				DataRowView row = vue[0];
+				Console.WriteLine(vue["CompanyName"]);
+
+		Examining All Rows of Data Available Through a DataView:-
+			Using a DataView to access data in a DataTable is slightly different 
+from accessing the DataTable directly. The DataTable exposes its 
+rows of data through the Rows property, which allows you to scroll 
+through its contents with a For Each loop. The DataView object does 
+not expose data via such an easily enumerable collection.
+
+			The DataView object exposes a Count property that returns the number 
+of rows visible through the DataView. You can use this property to 
+construct a simple For loop to examine all of the rows.
+
+			The DataView also exposes a GetEnumerator method that returns an 
+IEnumerator object. The IEnumerator object, which resides in the 
+System.Collections namespace, offers navigation functionality 
+similar to what the Data­Reader object offers through its MoveNext 
+method.
+
+				DataTable tbl = new DataTable("Customers");
+				//Retrieve data into the DataTable, and modify some rows.
+
+				//Create a DataView that contains only modified rows
+				//and returns the original contents of those rows.
+				DataView vue;
+				vue = new DataView(tbl, "", "", 
+DataViewRowState.ModifiedOriginal);
+				DataRowView row;
+
+				//Use a simple for loop to examine the contents of the DataView.
+				for (int intCounter = 0; intCounter < vue.Count; intCounter++)
+				{
+						row = vue[intCounter];
+						Console.WriteLine(row["CompanyName"]);
+				}
+
+				//Use an enumerator to loop through the contents of the 
+DataView.
+				IEnumerator objEnum = vue.GetEnumerator();
+				while (objEnum.MoveNext())
+				{
+						row = (DataRowView) objEnum.Current; 
+						Console.WriteLine(row["CompanyName"]);
+				}
+		
+		Searching for Data in a DataView:-
+			Using the Find and FindRows methods of the DataView, you can search 
+for rows according to their Sort key values. The case-sensitivity of 
+search values in the Find and FindRows methods is determined by the 
+CaseSensitive property of the underlying DataTable. Search values 
+must match existing sort key values in their entirety in order to 
+return a result. To use the Find or FindRows methods you must 
+specify a sort order either by setting ApplyDefaultSort to true or 
+by using the Sort property. If no sort order is specified, an 
+exception is thrown.
+			
+			The DataRowCollection object’s Find method performs a search based 
+on the column(s) specified in the DataTable object’s PrimaryKey 
+property. Because a primary key is also associated with a unique key 
+constraint, one row at most will satisfy the criteria specified in 
+the DataRowCollection object’s Find method.
+
+			The Find method returns the Index of the desired row based on the 
+Columns specified in the Sort property. If it cannot find the 
+desired row, it returns a -1. The FindRows method returns an array 
+of DataRowView objects that contains the rows that satisfied the 
+criteria you specified.
+
+				string strConn = "Provider=SQLOLEDB;Data 
+Source=(local)\\NetSDK;" + 
+						 "Initial Catalog=Northwind;Trusted_Connection=Yes;";
+				string strSQL = "SELECT CustomerID, CompanyName, ContactName, " 
+               + "Phone, City, Country FROM Customers";
+				OleDbDataAdapter da = new OleDbDataAdapter(strSQL, strConn);
+				DataTable tbl = new DataTable("Customers");
+				da.Fill(tbl);
+				DataView vue = new DataView(tbl);
+
+				Console.WriteLine("Use the Find method to locate a row " +
+								  "based on the ContactName column");
+				vue.Sort = "ContactName";
+				int intIndex = vue.Find("Fran Wilson");
+				if (intIndex == -1)
+					Console.WriteLine("\t" + "Row not found!");
+				else
+					Console.WriteLine("\t" + vue[intIndex]["CompanyName"]);
+				Console.WriteLine();
+
+				Console.WriteLine("Use the FindRows method to locate rows " +
+								  "based on the Country column");
+				vue.Sort = "Country";
+				DataRowView[] aRows = vue.FindRows("Spain");
+				if (aRows.Length == 0)
+					Console.WriteLine("\t" + "No rows found!");
+				else
+					foreach (DataRowView row in aRows)
+						Console.WriteLine("\t" + row["City"]);
+
+				// Get object reference of the table for simplified use
+				DataTable dataTable = dataSet.Tables[0];
+				// Set a sort order
+				dataTable.DefaultView.Sort = "Vendor";
+				// Find the Wilson product
+				int found = dataTable.DefaultView.Find("Wilson");
+				Console.WriteLine("Vendor: {0}",
+				dataTable.DefaultView[found]["Vendor"]);
+				// Find all Rawlings products
+				DataRowView[] rows =
+				dataTable.DefaultView.FindRows("Rawlings");
+				Console.WriteLine("Rawlings count: {0}", rows.Length);
+				// Set a compound sort order
+				dataTable.DefaultView.Sort = "Vendor, Price DESC";
+				// Find the compound criteria product
+				object[] criteria = new object[] {"Wilson", 29.99};
+				found = dataTable.DefaultView.Find(criteria);
+				Console.WriteLine("Compound Vendor Search: {0}",
+				dataTable.DefaultView[found]["Vendor"]);
+
+		Adding-Modifying DataRowView Object:-	
+			Creating a new row of data using a DataRowView object is slightly 
+different from creating a new DataRow. The DataView has an AddNew 
+method that returns a new DataRowView object. The new row is not 
+actually added to the underlying DataTable until you call the 
+EndEdit method of the DataRowView object.
+
+				DataTable tbl = new DataTable("Customers");
+				DataView vue = new DataView(tbl);
+				//Add a new row.
+				DataRowView row = vue.AddNew();
+				row["CustomerID"] = "ABCDE";
+				row["CompanyName"] = "New Company";
+				row["ContactName"] = "New Contact";
+				row["Phone"] = "(617) 555-1212";
+				row.EndEdit();
+				//Modify a row.
+				row.BeginEdit();
+				row["CompanyName"] = "Modified";
+				row.EndEdit();
+				//Delete a row.
+				row.Delete();
+
+		CreateChildView Method:-
+			Let’s say you want to create a DataView object that displays only 
+the related child rows for a particular row.
+
+				DataSet ds = new DataSet();
+				DataTable tblCustomers, tblOrders;
+
+				tblCustomers = ds.Tables["Customers"];
+				tblOrders = ds.Tables["Orders"];
+				ds.Relations.Add("CustomersOrders", 
+tblCustomers.Columns["CustomerID"], 
+								 tblOrders.Columns["CustomerID"]);
+
+				DataView vueCustomers, vueOrders;
+				vueCustomers = new DataView(tblCustomers);
+				vueOrders = vueCustomers[0].CreateChildView("CustomersOrders");
+
+		Merging DataSets:-
+			ADO.NET supports merging DataSets in the following ways:
+			• Copy contents of DataSets with the same schema to join all the 
+rows in each DataSet.
+			• Update the state of records from one DataSet into another DataSet, 
+again with the same schema.
+			• Merge two DataSets with dissimilar schema to get a DataSet with 
+all the DataTables from both DataSets.
+
+			In the process of a merge, the schema is merged first, then the 
+data. 
+
+
+	Creating Strongly Typed DataSet Objects:-
+		The .NET Framework SDK includes a command-line utility called the XML 
+Schema Definition Tool, which helps you generate class files based on 
+XML schema (.xsd) files. You can use this utility in conjunction with 
+the DataSet object’s WriteXmlSchema method to translate your DataSet 
+into a strongly typed DataSet class.
+
+		The WriteXmlSchema method is overloaded to accept a Stream object, a 
+TextWriter object, an XmlWriter object, or a filename as a string. The 
+following code snippet builds a DataSet using columns from the Customers 
+and Orders tables in the sample Northwind database. It also adds a 
+DataRelation between the two DataTable objects before writing the schema 
+for the DataSet to a file.
+	
+		Using the XML Schema Definition Tool:-
+			The XML Schema Definition Tool is simply a file in the bin directory 
+called XSD.exe. The tool can generate class files based on XML 
+schema (.xsd or .xdr) files. It can also create XML schema files 
+from libraries (.dll) and executables (.exe).
+				
+				To Create Dataset
+				C:/>XSD Chapter9.XSD /d 
+
+				To Create Class
+				C:/>XSD Chapter9.XSD /c 
+
+				Now you can simply add your new class file to your project, and 
+you can create an instance of your new strongly typed DataSet 
+class, as shown in the following code snippet:
+
+					Chapter9 ds = new Chapter9();
+
+		Adding a Row:-
+			Each class for the DataTable objects in your DataSet offers two ways 
+to add a new row to the DataTable. Calling New<TableName>Row returns 
+a new strongly typed DataRow for your DataTable. You can then set 
+values for columns in the row using properties of the strongly typed 
+DataRow.
+
+
+	SUBMITTING UPDATES TO DATABASE
+	--------------------------------
+		The DataAdapter object exposes four properties that contain Command 
+objects. You’ve already learned that the SelectCommand property contains 
+the Command that the DataAdapter uses to fill your DataTable. The other 
+three properties—UpdateCommand, InsertCommand, and DeleteCommand—contain 
+the Command objects that the DataAdapter uses to submit pending changes.
+
+		However, when we add Parameter objects to the DataAdapter object’s 
+Command objects, we’ll use two properties of the ADO.NET Parameter 
+object that are designed specifically for updates using the DataAdapter: 
+
+			1) SourceColumn 
+			2) SourceVersion :	The default value is DataRowVersion.Current, so 
+we need to set the property to Original only if we want to bind the	Parameter 
+objects to the original values in the desired column.
+			
+			static OleDbCommand CreateDataAdapterUpdateCommand()
+			{
+					//	 When using a Stored Procedure
+					//   OleDbCommand cmd = new OleDbCommand("spUpdateDetail", 
+cn);
+					  //	 cmd.CommandType = CommandType.StoredProcedure;
+
+					string strSQL;
+					strSQL = "UPDATE [Order Details] " & _
+									 "    SET OrderID = ?, ProductID = ?, " +
+									 "        Quantity = ?, UnitPrice = ? " +
+									 "    WHERE OrderID = ? AND ProductID = ? 
+AND " +
+									 "          Quantity = ? AND UnitPrice = ?";
+					OleDbCommand cmd = new OleDbCommand(strSQL, cn);
+
+					OleDbParameterCollection pc = cmd.Parameters;
+					pc.Add("OrderID_New", OleDbType.Integer, 0, "OrderID");
+					pc.Add("ProductID_New", OleDbType.Integer, 0, "ProductID");
+					pc.Add("Quantity_New", OleDbType.SmallInt, 0, "Quantity");
+					pc.Add("UnitPrice_New", OleDbType.Currency, 0, "UnitPrice");
+
+					OleDbParameter param;
+					param = pc.Add("OrderID_Orig", OleDbType.Integer, 0, 
+"OrderID");
+					param.SourceVersion = DataRowVersion.Original;
+					param = pc.Add("ProductID_Orig", OleDbType.Integer, 0, 
+												 "ProductID");
+					param.SourceVersion = DataRowVersion.Original;
+					param = pc.Add("Quantity_Orig", OleDbType.SmallInt, 0, 
+												 "Quantity");
+					param.SourceVersion = DataRowVersion.Original;
+					param = pc.Add("UnitPrice_Orig", OleDbType.Currency, 0, 
+												 "UnitPrice");
+					param.SourceVersion = DataRowVersion.Original;
+
+					return cmd;
+			}    
+
+		static OleDbCommand CreateDataAdapterInsertCommand()
+		{
+				string strSQL;
+				strSQL = "INSERT INTO [Order Details] " +
+								 "    (OrderID, ProductID, Quantity, UnitPrice) 
+" +
+								 "    VALUES (?, ?, ?, ?)";
+				OleDbCommand cmd = new OleDbCommand(strSQL, cn);
+				OleDbParameterCollection pc = cmd.Parameters;
+				pc.Add("OrderID", OleDbType.Integer, 0, "OrderID");
+				pc.Add("ProductID", OleDbType.Integer, 0, "ProductID");
+				pc.Add("Quantity", OleDbType.SmallInt, 0, "Quantity");
+				pc.Add("UnitPrice", OleDbType.Currency, 0, "UnitPrice");
+
+				return cmd;
+		} 
+
+		static OleDbCommand CreateDataAdapterDeleteCommand()
+		{
+				string strSQL;
+				strSQL = "DELETE FROM [Order Details] " +
+								 "    WHERE OrderID = ? AND ProductID = ? AND " 
++
+								 "          Quantity = ? AND UnitPrice = ?";
+				OleDbCommand cmd = new OleDbCommand(strSQL, cn);
+
+				OleDbParameter param;
+				OleDbParameterCollection pc = cmd.Parameters;
+				param = pc.Add("OrderID", OleDbType.Integer, 0, "OrderID");
+				param.SourceVersion = DataRowVersion.Original;
+				param = pc.Add("ProductID", OleDbType.Integer, 0, "ProductID");
+				param.SourceVersion = DataRowVersion.Original;
+				param = pc.Add("Quantity", OleDbType.SmallInt, 0, "Quantity");
+				param.SourceVersion = DataRowVersion.Original;
+				param = pc.Add("UnitPrice", OleDbType.Currency, 0, "UnitPrice");
+				param.SourceVersion = DataRowVersion.Original;
+
+				return cmd;
+		} 
+
+		static void SubmitChangesViaDataAdapter()
+		{
+				da.UpdateCommand = CreateDataAdapterUpdateCommand();
+				da.InsertCommand = CreateDataAdapterInsertCommand();
+				da.DeleteCommand = CreateDataAdapterDeleteCommand();
+				da.Update(tbl);
+		}
+	
+		Any number you type into your program is automatically of type int if it
+		has no fractional part or type double if it does. If you want to 
+indicate that it is a different type, you can use various suffix and 
+prefix characters:
+			float loan = 1.23f; //float
+			long pig = 45L; //long
+			int color = 0x12345; //hexadecimal
+
+	Using the CommandBuilder Object to Generate Updating Logic:-
+		If you instantiate a CommandBuilder object and associate it with a 
+DataAdapter object, the CommandBuilder will attempt to generate updating 
+logic based on the query contained in the DataAdapter object’s 
+SelectCommand.
+
+		The CommandBuilder can generate updating logic if all of the following 
+are true:
+
+			- Your query returns data from only one table.
+			- That table has a primary key.
+			- The primary key is included in the results of your query.
+
+			As we discussed earlier, the primary key ensures that the 
+query-based updates that the CommandBuilder generates can update one 
+row at most. Why does the CommandBuilder place a restriction on the 
+number of tables referenced in the results of your query? We’ll 
+discuss this later in the chapter.
+
+			The CommandBuilder object uses the DataAdapter object’s 
+SelectCommand to fetch the metadata necessary for the updating logic
+
+	Working with Null Values:-
+		What do Null values have to do with submitting changes to your database 
+using a DataAdapter? Let’s take a quick look at the CommandText for the 
+Command we created earlier to submit modified rows in the Order Details 
+table:
+
+			UPDATE [Order Details]
+					SET OrderID = ?, ProductID = ?, Quantity = ?, UnitPrice = ?
+					WHERE OrderID = ? AND ProductID = ? AND 
+								Quantity = ? AND UnitPrice = ?
+
+		So how do we change the WHERE clause of our queries to accommodate Null 
+values in our concurrency check? If a particular column accepts Null 
+values, we can replace the following portion of a query
+
+			ColumnName = ?
+			with
+
+			(ColumnName = ? OR ((ColumnName IS NULL) AND (? IS NULL)))
+
+	Submitting Updates in Transactions:-
+		In general, tie to DataRow-Version.Current for parameters that will be 
+used to actually change values in the database, and to 
+DataRowVersion.Original for values that will be used in the WHERE clause 
+of the SQL statement to determine row identity.
+
+		The DataAdapter does not actually submit the updates. It simply hands 
+the work off to the Command objects in its UpdateCommand, InsertCommand, 
+and DeleteCommand properties. The Command object exposes a Transaction 
+property, so in order to submit the changes using the DataAdapter, you 
+must set the Transaction property of the Command objects that the 
+DataAdapter will use.
+
+			string strConn, strSQL;
+			strConn = "Provider=SQLOLEDB;Data Source=(local)\\NetSDK;" +
+								"Initial 
+Catalog=Northwind;Trusted_Connection=Yes;";
+			strSQL = "SELECT OrderID, ProductID, Quantity, UnitPrice " +
+							 "FROM [Order Details] WHERE OrderID = 10503 " +
+							 "ORDER BY ProductID";
+			DataTable tbl = new DataTable();
+			OleDbConnection cn = new OleDbConnection(strConn);
+			OleDbDataAdapter da = new OleDbDataAdapter(strSQL, cn);
+			//Define updating logic for the DataAdapter.
+
+			//Open the connection and fetch the results of the query.
+			cn.Open();
+			da.Fill(tbl);
+
+			//Modify the contents of the DataTable.
+
+			//Create a new transaction.
+			OleDbTransaction txn = cn.BeginTransaction();
+			//Set the Transaction property of the DataAdapter's Commands.
+			da.UpdateCommand.Transaction = txn;
+			da.InsertCommand.Transaction = txn;
+			da.DeleteCommand.Transaction = txn;
+
+			//Submit the changes.
+			da.Update(tbl);
+
+			//Commit the changes and close the connection.
+			txn.Commit();
+			cn.Close();
+
+	It’s slightly more challenging to submit changes in a transaction if you’re 
+relying on the CommandBuilder object to generate your updating logic. The 
+CommandBuilder does not actually generate the updating logic when you 
+instantiate it. If you instantiate a CommandBuilder object and later call 
+DataAdapter.Update, the CommandBuilder will not actually build the updating 
+logic until you call the DataAdapter object’s Update method. This behavior 
+poses a slight problem if you want to use the CommandBuilder to submit 
+changes in a transaction.
+
+	This code will throw an Exception:
+		string strConn, strSQL;
+		..
+		DataTable tbl = new DataTable();
+		OleDbConnection cn = new OleDbConnection(strConn);
+		OleDbDataAdapter da = new OleDbDataAdapter(strSQL, cn);
+		OleDbCommandBuilder cb = new OleDbCommandBuilder(da);
+		cn.Open();
+		da.Fill(tbl);
+		OleDbTransaction txn = cn.BeginTransaction();
+		da.Update(tbl);
+		txn.Commit();
+		cn.Close();
+
+	When you call DataAdapter.Update, the CommandBuilder will fetch the required 
+metadata from the database using the DataAdapter object’s SelectCommand. We 
+have not associated the Command object in the SelectCommand property with 
+the newly created transaction. As a result, the CommandBuilder.
+
+	If we add the following line of code just before the call to the DataAdapter 
+object’s Update method, our code will succeed:
+
+		da.SelectCommand.Transaction = txn
+
+	However, this means that the CommandBuilder fetches schema information from 
+your database within a transaction. Generally speaking, you want to touch as 
+little data as possible in your database during a transaction. A more 
+palatable option is to force the CommandBuilder to generate updating logic 
+before starting the transaction. We can accomplish this by calling the 
+CommandBuilder object’s GetUpdateCommand (or GetInsertCommand or 
+GetDeleteCommand) method.
+
+		string strConn, strSQL;
+		..
+		DataTable tbl = new DataTable();
+		OleDbConnection cn = new OleDbConnection(strConn);
+		OleDbDataAdapter da = new OleDbDataAdapter(strSQL, cn);
+		OleDbCommandBuilder cb = new OleDbCommandBuilder(da);
+		cn.Open();
+		cb.GetUpdateCommand();
+		da.Fill(tbl);
+		OleDbTransaction txn = cn.BeginTransaction();
+		cb.GetUpdateCommand().Transaction = txn;
+		cb.GetInsertCommand().Transaction = txn;
+		cb.GetDeleteCommand().Transaction = txn;
+		da.Update(tbl);
+		txn.Commit();
+		cn.Close();
+
+	TableMappings Collection in an Update:-
+		The TableMappings collection has a similar effect when you submit 
+updates. If you supply just a DataSet object in the DataAdapter object’s 
+Update method, the DataAdapter will rely on its TableMappings collection 
+to determine which DataTable in the DataSet to examine:
+
+			OleDbDataAdapter da = new OleDbDataAdapter(strSQL, strConn);
+			//Define updating logic.
+			da.TableMappings.Add("Table", "Order Details");
+			DataSet ds = new DataSet();
+			da.Fill(ds);
+			//Modify a series of rows.
+			da.Update(ds);
+
+		If you have not populated the DataAdapter object’s TableMappings 
+collection, you must either use the Update method that accepts a DataSet 
+and a table name or use the Update method that accepts a DataTable 
+object:
+			delQry = @"DELETE FROM CUSTOMER
+			WHERE CustomerID = @CustomerID AND
+			Stamp = @Stamp";
+			SqlCommand delCmd = conn.CreateCommand();
+			delCmd.CommandText = delQry;
+			// Get a reference of the collection for simplification
+			SqlParameterCollection delParams = delCmd.Parameters;
+			// Build the parameters
+			delParams.Add("@CustomerID", SqlDbType.UniqueIdentifier, 0,
+			"CustomerID");
+			delParams.Add("@Stamp", SqlDbType.Timestamp, 0, "Stamp");
+			delParams["@Stamp"].SourceVersion = DataRowVersion.Original;
+			// Assign the DELETE command to the DataAdapter
+			dataAdapter.DeleteCommand = delCmd;
+	
+		The really interesting part of this example is that we are telling the
+		Stamp parameter to retrieve its data for the command from the original
+		version of the row. This means that even if someone changes the Stamp
+		value, we are always comparing against the original that we retrieved.
+
+		The UPDATE Command. The UPDATE command that the CommandBuilder created 
+requires that you send both the changed values and all original values 
+of the row to make sure that the row has not changed since it was 
+fetched. To make this more efficient, I have chosen to use the Stamp 
+field (which contains a Timestamp). The difficulty here is that when we 
+update the database, we need to get the new timestamp so that the next 
+time we update we have the newest timestamp for the row. Luckily, 
+ADO.NET allows us to do it all in one roundtrip to the database by 
+performing the insert and then querying for the new value in the Stamp 
+field.
+
+			string updQry =
+				updQry = @"UPDATE CUSTOMER SET
+				CustomerID = @CustomerID,
+				FirstName = @FirstName,
+				LastName = @LastName,
+				MiddleName = @MiddleName,
+				Address = @Address,
+				Apartment = @Apartment,
+				City = @City,
+				State = @State, Zip = @Zip,
+				HomePhone = @HomePhone,
+				BusinessPhone = @BusinessPhone,
+				DOB = @DOB,
+				Discount = @Discount
+				WHERE Stamp = @Stamp AND CustomerID =
+				@CustomerID
+				SELECT @Stamp = Stamp FROM CUSTOMER
+				WHERE CustomerID = @CustomerID";
+
+			SqlCommand updCmd = conn.CreateCommand();
+				updCmd.CommandText = updQry;
+				// Get a reference of the collection for simplification
+				SqlParameterCollection updParams = updCmd.Parameters;
+				// Build the parameters
+				updParams.Add("@CustomerID", SqlDbType.UniqueIdentifier, 0,
+				"CustomerID");
+				updParams.Add("@FirstName", SqlDbType.NVarChar, 50,
+				"FirstName");
+				updParams.Add("@MiddleName", SqlDbType.NVarChar, 50,
+				"MiddleName");
+				updParams["@MiddleName"].IsNullable = true;
+				updParams.Add("@LastName", SqlDbType.NVarChar, 50,
+				"LastName");
+				updParams["@LastName"].IsNullable = true;
+				updParams.Add("@Address", SqlDbType.NVarChar, 50,
+				"Address");
+				updParams["@Address"].IsNullable = true;
+				updParams.Add("@Apartment", SqlDbType.NVarChar, 50, 			
+				"Apartment");
+			updParams["@Apartment"].IsNullable = true;
+			updParams.Add("@City", SqlDbType.NVarChar, 50, "City");
+			updParams["@City"].IsNullable = true;
+			updParams.Add("@State", SqlDbType.NChar, 2, "State");
+			updParams["@State"].IsNullable = true;
+			updParams.Add("@Zip", SqlDbType.NVarChar, 10, "Zip");
+			updParams["@Zip"].IsNullable = true;
+			updParams.Add("@HomePhone", SqlDbType.NVarChar, 14,
+			"HomePhone");
+			updParams["@HomePhone"].IsNullable = true;
+			updParams.Add("@BusinessPhone", SqlDbType.NVarChar, 14,
+			"BusinessPhone");
+			updParams["@BusinessPhone"].IsNullable = true;
+			updParams.Add("@DOB", SqlDbType.DateTime, 0, "DOB");
+			updParams["@DOB"].IsNullable = true;
+			updParams.Add("@Discount", SqlDbType.Float, 8, "Discount");
+			updParams["@Discount"].IsNullable = true;
+
+			updParams.Add("@Stamp", SqlDbType.Timestamp, 0, "Stamp");
+			updParams["@Stamp"].SourceVersion = DataRowVersion.Original;
+			updParams["@Stamp"].Direction =	ParameterDirection.InputOutput;
+
+			// Assign the INSERT command to the DataAdapter
+			dataAdapter.UpdateCommand = updCmd;
+
+		In this command, we are not only specifying that we want the original 
+DataRowVersion, but also that the ParameterDirection is InputOutput. 
+This tells ADO.NET to take the parameter when we get back from the 
+database and automatically put it in the Stamp column of the row. We 
+need this new version of the Stamp so that when we make a change to the 
+row again and call DataAdapter.Update(), we will have a valid Stamp 
+(from the database) to perform the concurrency check.
+
+	RefreshSchema:-
+		If you’re changing the structure of your DataAdapter object’s query in 
+your application, you’ll probably need to use the CommandBuilder 
+object’s RefreshSchema method.
+
+		The DataAdapter object does not fire an event when the CommandText 
+property of its SelectCommand changes. Once the CommandBuilder object 
+has generated your updating logic, as far as it knows, its work is done. 
+If you’ve changed the structure of the DataAdapter object’s query so 
+that the CommandBuilder needs to regenerate the updating logic, you can 
+call the RefreshSchema method of the CommandBuilder object.
+	
+	Using DiffGrams:-
+		In contrast to WriteSchema, the DiffGram is used for getting all the 
+data in the DataSet (both original and current values if they are 
+different). Diff- Grams do not include any schema. The assumption is 
+that you have a DataSet with schema that you will fill with a DiffGram. 
+When you serialize the DataSet into XML using the DiffGram mode, you 
+will notice that you get all the data, not just the changes. If you 
+wanted to create an XML document that contained only the changes, you 
+could call the DataSet.GetChanges() method and get a DiffGram from that.
+		As we have already found, DiffGrams contain all the information about 
+the data in a DataSet—both the original and the current values of rows. 
+You can do one of two things with this information: merge DataSets or 
+transmit DataSets for database updating. Merging is great if you need to 
+merge two local DataSets, but in the case where you want to use a Web 
+service or Message Queuing to send the changes to the middle tier for 
+updating, the DiffGram is much more efficient.
+
+			// Change a couple rows
+			invoiceItemTable.Rows[0]["Quantity"] = 5;
+			// Get a DataSet of the changes
+			DataSet dataSetChanges = dataSet.GetChanges();
+			// Write the XML file out
+			dataSetChanges.WriteXml(fileName, XmlWriteMode.DiffGram);
+
+		XmlWriteMode allows us to save XML in one of three formats:
+			•	IgnoreSchema: This is the default behavior. It writes out just 	
+	the data in the DataSet. If no data is loaded, no file is 		
+	generated.
+			•	WriteSchema: Writes out the data in the same way as 			
+	IgnoreSchema, but places the schema information as an inline XSD 
+	document.
+			•	DiffGram: Writes out both the original and the current data in 	
+	the DataSet. 
+
+		These are the possible values for XmlReadMode:
+			• Auto: This is the default behavior. The DataSet will attempt to 
+figure out the best method of reading the XML into itself. If you 
+already know the mode of XML read, you will see a performance gain 
+by specifying the mode.
+			• DiffGram: Reads the DiffGram and applies the changes to the 		
+			DataSet. RowStates are preserved. This mode is similar to 
+DataSet.Merge() behavior.
+
+
+	Using XSLT:-
+		// Create an XmlDataDocument
+			XmlDataDocument dataDoc = new XmlDataDocument(dataSet);
+			// Make a StringWriter to hold the results
+			StringWriter writer = new StringWriter();
+			// Transform it
+			XslTransform xslt = new XslTransform();
+			xslt.Load(@"XmlDataDocSample.xsl");
+			xslt.Transform(dataDoc, null, writer);
+			// Show the results
+			Console.WriteLine(writer.ToString());
+
+			//Searching using XPath
+			XmlDataDocument dataDoc = new XmlDataDocument(dataSet);
+			//Search it
+			string xpath = "//Customers[FirstName = \"Tom\"]";
+			XmlNode node = dataDoc.SelectSingleNode(xpath);
+			if (node != null)
+			{
+			Console.WriteLine("Found:");
+			Console.WriteLine(node.OuterXml);
+			}
+			else
+			{
+			Console.WriteLine("No Nodes found");
+			}
+
+Customizing the Generated Code with Annotations:-
+	ADO.NET allows you to control some aspects of the generated code by
+	annotating the XSD that you use to generate the Typed DataSets. You can do 
+this by annotating your XSD with several special attributes. All of these 
+attributes are prefixed with the namespace of codegen. 
+	xmlns:codegen="urn:schemas-microsoft-com:xml-msprop" >
+
+	These attributes are:
+		• typedName: Specifies the name of an object.
+		• typedPlural: Specifies the name of the collection of objects.
+		• typedParent: Specifies the name of the parent relationship.
+		• typedChildren: Specifies the name of the child relationship.
+		• nullValue: Specifies how to handle a DBNull value for a particular row
+		value. When you use this annotation, there are several possible values 
+for the nullValue attribute:
+		• Replacement Value: The value to return instead of a null (for
+		example, codegen:nullValue="" will return an empty string
+		instead of a null for a string field).
+		• _throw: Throws an exception when the value is accessed and is
+		null (for example, codegen:nullValue=_throw). If the user would
+		use the IsNull properties as part of the Typed DataSet to determine
+		whether the field is null before trying to retrieve it. This is the 
+default
+		behavior if not annotated.
+		• _null: Returns a null reference from the field. If a value type is
+		encountered an exception is thrown.
+		• _empty: Returns a reference created with an empty constructor. For
+		strings, it returns String.Empty. For value types, an exception is
+		thrown.
+		These must be added directly to the .XSD file. If you are using Visual
+		Studio .NET, you must go to the XML view of your XSD to add these 
+annotations. These annotations are added to an XSD like so:
+
+	Next, we make some changes to the Customer Element. typedName changes the 
+name of the Typed DataRow in the DataTable to Our- Customer. When you ask 
+for an individual row from the DataTable, it will return you an instance of 
+the OurCustomer class instead of the default of Customer. typedPlural 
+changes the name of the property on the DataSet that returns the specific 
+DataTable. When retrieving the Customer DataTable, you would call the 
+OurCustomers property.
+
+	<xs:keyref name="CustomerInvoice" refer="ADONETKey1" 
+			msdata:DeleteRule="Cascade" msdata:UpdateRule="Cascade" 
+			codegen:typedChildren="Invoices" codegen:typedParent="Customer">
+			<xs:selector xpath=".//mstns:Invoice" />
+			<xs:field xpath="mstns:CustomerID" />
+	</xs:keyref>
+
+	Last, we changed the names of each end of our relationship by annotating the 
+keydef tag with typedChildren and typedParent. This changes how each side of 
+the relationship is named. The Customer class will have a method called 
+Invoices (instead of GetInvoice- Table) to navigate down the relationship 
+and the Invoice class will have a method called Customer (instead of 
+GetCustomerTable) to navigate up the relationship.
+	
+	Relations do not require you to enforce constraints. You can create a 
+relation programmatically using the constructor overload that includes a 
+createConstraints boolean parameter, and set it to false.
+
+	You can also do this in a schema, but not by using a standard keyref
+	element the way the wizard does. Instead you create the relation by
+	using an annotation that Microsoft has defined for this purpose.
+	Here's an example:
+	<?xml version="1.0" standalone="yes" ?>
+	<xs:schema id="MyDataSet" 
+xmlns:xs="http://www.w3.org/2001/XMLSchema"xmlns:msdata="urn:schemas-microso
+ft-com:xml-msdata">
+	. . .
+	   <xs:annotation>
+		 <xs:appinfo>
+		   <msdata:Relationship name="OrdOrdDetailRelation"
+							   msdata:parent="Order"
+							   msdata:child="OrderDetail"
+							   msdata:parentkey="OrderNumber"
+							   msdata:childkey="OrderNo"/>
+		 </xs:appinfo>
+	  </xs:annotation>
+	 . . . 
+
+DBConcurrency Exception
+========================
+ If any update attempts fail, you want to:
+
+  1.) Make sure no changes were written to the database
+  2.) Return the DataSet to the state prior to submitting changes
+  3.) Inform the user as to which update attempts failed and why
+
+	It sounds like you have points 1 & 2 covered already.  Let's see what we can 
+do about 3.
+
+	Trap for the DataAdapter's RowUpdated event.  The event includes an argument 
+of <ProviderSpecific>RowUpdatedEventArgs, which I'll call e here.  In the 
+event if e.Status is UpdateStatus.ErrorsOccurred and e.Errors is of type 
+DBConcurrencyException, then the update failed because of a concurrency 
+exception.  At that point, you'll want to query the database and get some 
+information on the current contents of the corresponding row in the 
+database.  You can access the DataRow whose update failed via e.Row.  
+Execute a parameterized query using a DataAdapter and a separate DataTable 
+(with the same schema as your current DataTable).  Check the return value of 
+DataAdapter.Fill to determine how many rows the query returned.  The update 
+attempt may have failed because the row was deleted from the database.
+
+	Once DataAdapter.Update has completed, the information you tracked from the 
+RowUpdated event will tell you which rows failed to update and will tell you 
+the current state of those rows in the database.  You can then go back to 
+the DataSet (from 2) you'd stored prior to submitting changes and use this 
+information to show which update attempts had failed.  If you want, you can 
+also examine the data you fetched from your parameterized queries and 
+compare that to the original values stored in the DataRow to figure out why 
+the update attempt failed (i.e. "Another user changed the value for 
+<ColumnName>") and inform the user how you see fit depending on your 
+application.
+
+	Keep in mind that if an update failed because of a failed concurrency check, 
+simply re-submitting the update will also fail.  In order to make that 
+update succeed, you'll need to change the "original" values stored in the 
+DataRows.  You can use the data you retrieved from the database in the 
+RowUpdated event to accomplish this.  Call the Merge method on the DataSet 
+that contains your pending changes.  Supply the DataSet that contains the 
+current data from the database and set the PreserveChanges parameter to 
+True:
+
+	MainDataSet.Merge(DataSetOrTableRetrievedInRowUpdatedEvent, True)
+
+	When ADO.NET merges the contents and finds two rows with the same key 
+value(s), it will preserve the current values in the DataSet whose Merge 
+method is called and replace the original values with the ones passed into 
+the method.
+
+	With the help of the transaction, saving the state of the DataSet with its 
+pending changes, the RowUpdated event, a parameterized DataAdapter, and the 
+Merge method, I think you'll have all the power you need.  You'll be able to 
+the user understand which update attempts failed, why they failed, determine 
+how to proceed without losing the changes they entered, and allow them to 
+re-submit those changes and have the updates succeed. 
+
+
+ The typical service type can look like this:
+
+		public class OrdersFacade: BusinessService
+		{
+		   public OrdersFacade() 
+		   {
+		   }
+
+		   public OrdersDataSet GetOrders(string customerID, DateTime dateFrom, 
+									DateTime dateTo)
+		   {
+
+			NorthwindOrdersDataSet ds = new  NorthwindOrdersDataSet();
+
+			OrderQuery orderQuery = new OrderQuery();
+
+			   orderQuery.Criteria = orderQuery.CustomerID ==
+					 customerID && orderQuery.OrderDate.Between(dateFrom, 
+dateTo);
+
+			   orderQuery.Fill(ds.Order);
+
+			   orderQuery.OrderDetails.Invert().Fill(ds.OrderDetail); 
+			return ds;
+		   }
+
+		   [Transactional]
+		   public OrdersDataSet SaveOrders(OrdersDataSet ds)     
+		   {
+			  Broker.Update(ds.Order);
+			  Broker.Update(ds.OrderDetail);
+
+			return ds;
+		   }
+		}
+
+ 
+·   For each modified row corresponding INSERT, UPDATE or DELETE operation will 
+be performed.
+
+·   If table being updated is new and its key is auto-generated it will be 
+updated with a new value
+
+·   Optimistic concurrency will be controlled if table being updated contains 
+licking fields (timestamps or version field)
+
+
+You can say it’s enough! But it’s not. When working with disconnected sources we 
+have ensure that client will get modified information back. For example the 
+Orders table of Northwind database has identity primary key that is generated by 
+database. Then you add new rows to the Order DataTable on the client side, new 
+rows will also get a generated primary key, since Orders DataTable primary key 
+marked as AutoIncrement. But these NEW KEYS WILL BE IGNORED during store data 
+and each new PersistentDataRow will take a new key from database. We have to 
+provide this new key back to the client. At the last line we return updated rows 
+back to the client.
+
+Important!
+
+Not only generated primary keys should be sent back to the client like in 
+example above, but also timestamps of objects supported concurrency. Than you 
+modify a data supporting timestamp concurrency DataRows will get a new 
+timestamps from database. These timestamps should be sent back to client in 
+order to make optimistic concurrency work at the next time than data saved.
+
+The topical code on the client can look like this: 
+ 
+
+	private ordersDataSet = new OrdersDataSet();
+	private OrderFacade = new OrdersFacade(); 
+
+
+	private void buttonSearch_Click( object sender, EventArgs e)
+	{
+
+		OrdersDataSet orders =
+
+		OrderFacade.GetOrders(10, dateTimePickerTo.Value.AddDays(-7),
+
+			 dateTimePickerTo.Value); 
+
+		 ordersDataSet.Clear();
+		 ordersDataSet.Merge(orders); 
+	}
+
+	private void buttonSave_Click(object sender, EventArgs e)
+	{
+		OrdersDataSet changes = ordersDataSet.GetChanges();
+
+		try
+		{
+
+			OrdersDataSet updated =  OrderFacade.SaveOrders(changes);
+			ordersDataSet.RejectChanges();
+			ordersDataSet.Merge(updated);
+		}
+
+		catch (PersistentRowException ex)
+		{
+			MessageBox.Show(ex.Message, Application.ProductName, 
+MessageBoxButtons.OK, MessageBoxIcon.Error); 
+			ordersDataSet.RejectChanges();
+		}
+	}
+
+ 
+	Suppose you have a form with local copy of OrdersDataSet that is bound to 
+form’s controls. Then user clicks Search button you have to read information 
+and display it in the form. You will do it using instance of OrdersFacade. 
+Then you want to store a modified data you will get a changes from 
+oredersDataSet instance, calling GetChangesMethod, and than call SaveOrders 
+method using OrdersFacade instance. Actually you have to surround this call 
+with try..catch block because it can throws exceptions. We are interesting 
+in any PersistentRowException since it can be any of flowing exceptions: 
+PrimaryKeyConstraintException, ForeignKeyConstraintException or 
+OptimisticConcurrencyException. Then such an exception occurred we will show 
+it to user and reject his changes. If SaveOrders method has succeed we also 
+reject changes and merge OrdersDataSet we got from service into our local 
+copy. It’s very important to reject changes first, because modified DataSet 
+we get from service can contain new primary keys and if we didn’t reject 
+changes we would get duplicate rows.
+
+
+Alejandro's suggestion of submitting pending deletions from
+the bottom up is the simplest solution, though I'd recommend
+using DataAdapter.Update in conjunction with DataTable.Select
+rather than GetChanges.  This solution works well whether your
+database uses cascading referential integrity or not.
+
+     If you want to leverage the cascading referential intergrity
+on the database, you could take another approach - submit the
+pending parent deletions, and tell ADO.NET to mark the related
+child rows as successfully updated against the database.
+
+     In the ADO.NET object model, you can control this behavior
+through the AcceptRejectRule on the ForeignKeyConstraint object.  
+When you submit a pending change using a DataAdapter, the
+DataAdapter implicitly calls the DataRow object's AcceptChanges
+method after successfully submitting a pending change.  This
+method tells the DataRow that it no longer needs to maintain the
+pending changes.  If AcceptRejectRule is set to Cascade, this
+change cascades down to the related rows.
+
+     In the scenario you described, you want to cascade the
+implicit call to AcceptChanges when submitting pending changes
+against the parent table.  Thus, your code would look something
+like this:
+
+C#:
+---
+    ForeignKeyConstraint fk;
+    fk = MyRelation.ChildKeyConstraint;
+
+    fk.AcceptRejectRule = AcceptRejectRule.Cascade;
+    ParentAdapter.Update(ParentTable.Select("", "",
+DataViewRowState.Deleted));
+    fk.AcceptRejectRule = AcceptRejectRule.None;
+

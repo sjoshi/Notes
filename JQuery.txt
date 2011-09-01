@@ -1,0 +1,188 @@
+JQuery
+======
+
+Links:
+
+http://ok-cool.com/posts/read/19-jquery-for-programmers-part-1/
+
+http://www.webdesignerwall.com/tutorials/jquery-tutorials-for-designers/
+
+
+
+Selectors:-
+
+The fundamental operation in jQuery is selecting part of document. This is done 
+with the $ construct that takes a string as a parameter, which can contain any 
+CSS selector expression.
+
+To delay execution of jQuery script until after the DOM is loaded and available 
+for use, we use the $(document).read() construct like this:
+
+	$(document).ready(function()
+	{
+		$('.poem-stanza').addClass('highlight');
+	});
+
+In this case, we wish to fnd all parts of the document that have the poem-stanza class applied to them.
+
+The building blocks of these selectors are tag name, ID and class. For example, 
+they can be used as in:
+	
+	Selector		CSS					JQuery						Description
+	----------	---   			-------     			-----------
+	Tag name		P							$('p')						Selects all paragraphs in doc
+	ID				  #some-id			$('#some-id')			Selects all element of that id
+	Class			  .some-class		$('.'some-class)	Selects all elements in the doc that 
+																							have a class of some-class
+
+Child Combinator (>):
+	
+	To add a horizontal class to all top-level items only, we need to select 
+each list item (li) that is a child (>) of the element with an id of 
+'selected-plays'. So we are selecting direct children of #selected-plays.
+
+		$('#selected-plays > li).addClass('horizontal');
+
+		 a—This selector matches all link (<a>) elements.
+		 
+		 #specialID—This selector matches elements that have an id of specialID.
+		 
+		 .specialClass—This selector matches elements that have the class of 
+specialClass.
+
+		a#specialID.specialClass—This selector matches links with an id of 
+		specialID and a class of specialClass.
+
+		 p a.specialClass—This selector matches links with a class of 
+specialClass declared within <p> elements.
+
+
+Attribute Selectors:
+
+	To select all images that have an alt attribute, we can use:
+		
+		$('img[alt]');
+	
+	You can use regular expression for attribute selectors, ^ for beginning, $ 
+for ending and * to indicate value at any position within a string and ! to 
+indicate a negated value.
+
+		$(a[href^=http;][href*=henry]').addClass('henrylink')
+	
+
+	CSS selectors are one-based while javascript are 0 based.
+
+	To select second item from a matched set of div elements with a class of 
+horizontal, we can write:
+
+		$('div.horizontal.eq(1)'); //in JScript
+		$('div:nth-child(2)');	//CSS selector
+
+	To match an element that possess a specific attribute, regardless of it's 
+value we can use:
+		
+		form[method]
+	
+	which will match any form element that has an explicit method attribute. 
+There are also custom form selectors like
+		
+		:text, :checkbox, :raio
+		:password,
+		:input - For Input, textarea, select and button elements
+		:checked - Radio buttons or checboxes that are checked
+		:selected - Option elements that are selected
+	
+	You can combine these further as:
+		
+		$(':radio:checked') - All checked radio buttons and not checkbxs
+
+	To match a specific attribute value, you can use something like:
+		
+		input[type=text]
+		div[title^=my]
+	
+	this matches all input element with a type of text and the other matches all 
+div elements with a title attribute whose value begins with my.
+
+	You can also select an element only if it contains some other element. Like 
+in :
+		li:has(a)
+	
+	which selects all <li> elements that contain an <a> element.
+
+	This is different from "li a", which selects all <a> elements contained 
+within <li> element.
+	
+	E F Matches all elements with tag name F that are descendents of E
+
+	E>F Matches all elements with tag name F that are direct children of E.
+
+	E.C Matches all elements E with class name C. Omitting E is the same as *.C.
+
+	E#I Matches element E with id of I. Omitting E is the same as *#I.
+
+	E[A] Matches all elements E with attribute A of any value.
+
+	E[A=V] Matches all elements E with attribute A whose value is exactly V.
+
+	E+F Matches all elements F immediately preceded by sibling E.
+
+	E~F Matches all elements F preceded by any sibling E.
+
+
+
+Position Selectors:
+	
+	To avoid the problems with odd/even selector, use the :nth-child() selector 
+that can take either a number, odd or even as its argument and is one-based. 
+
+	This matches, any odd tr children elements of their parent.
+		
+		$('tr.nth-child(odd)').addClass('alt')
+	
+	To match cell values, use the contains() method which is case-sensitive.
+
+		$('td:contains(Henry)').addClass('highlight');
+	
+
+
+
+DOM Traversal:
+
+	To select all external links with a domain name not equal to 
+location.hostname
+
+	$('a').filter(function(){
+		return this.hostname && this.hostname != location.hostname;
+	}).addClass('external');
+
+	To select the only very next sibling element, you can use the next() 
+function.
+
+	$('td:contains(Henry)').next().addClass('highlight');
+
+	To select all cells of a row where at least one cell contain Henry:
+
+	$('td.contains(Henry)').parent().children().addClass('highlight');
+
+
+	To negate a condition, use the :not keyword. To select non-checkbox <input> 
+elements, we use:
+	
+		input:not(:checkbox)
+
+	To obtain the first element in a set of all <img> elements with an alt 
+attribute on the page, you can write
+
+		$('img[alt]').get(0);
+	
+	All button elements preceded by a label element
+	
+		var allLabeledBtns = $('label+button').get();
+
+	To find the index of an element in a Set, say to find the ordinal index of 
+an image element with id of findMe within an entire set of images in a page:
+
+	var n = $('img').index($('img#findMe')[0]);
+
+	

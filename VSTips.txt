@@ -1,0 +1,59 @@
+Visual Studio Tips
+===================
+
+Cycle Clipboard: Ctr-Shift-V
+
+CodeBox: Ctr-Alt-X
+
+Transpose: SingleChar Ctr-T, WholeWord Ctr-Shift-T
+
+Del line: Ctr-L
+
+Swap line with one below: Alt-Shift-T
+
+Format Selection: Ctr-K Ctr-F
+
+Place TaskShortcuts: Ctr-K, Ctr-H
+
+Force Intellisense for Field Members: Ctr-J
+
+To view param info, place cursor over parameter and press Ctr-Shift-Spacebar
+
+Create Rectangular Sections by pressing Alt key while dragging mouse over 
+rectangular area.
+
+Search a word by placing cursor inside The word and pressing Ctr-F3
+
+Jump quickly to ending {} tag by pressing Ctr-] To select use Ctr-Shift-]
+
+Create Bookmarks using Ctr-K Ctr-K 
+Clear Bookmarks using Ctr-K Ctr-L
+
+Command Window: Ctr-ALT-A
+
+Immediate Window: Ctr-Alt-I or typing immed in the Command Window
+
+To see Breakpoints window: Ctr-Alt-B
+
+Encapsulate/Extract GetSet Properties: Ctr-Alt-M, E
+
+Extract Interfaces: Ctr-Alt-M, I
+
+List of Code Snippets: Ctr-K, Ctr-B
+
+Switch to Class View: Ctr-Shift-C
+
+View Code Definition: Ctr-Shift-D
+
+Clearing Assembly Cache Manually: gacutil.exe -cdl
+
+Using Unicode for Strings, Labels, and Inline Code:
+	When designing my Windows Forms apps in VS.NET editor, I simply turn on 
+the language tools such as Global Input Methods Editor of Windows and set 
+buttons and label values with Unicode strings.
+	Even better since the editor in VS.NET is unicode compliant, I can type 
+literal strings in Unicode, provided that I save my .cs files in Unicode 
+format by selecting File->Advanced Save Options.
+	To make things even more spectacular, I could even use Unicode for tha 
+actual code. This way code comments, regions labels, variable names, class 
+names even method names can include Unicode characters.

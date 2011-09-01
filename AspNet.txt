@@ -1,0 +1,24 @@
+ASP.NET Tips
+============
+
+Web Form Processing Stages:-
+	1. Page Framework Initialization - 
+		Creates the page
+		Generates all the controls defined
+		If it's PostBack, deserializes view state and applies to controls
+	
+	2. User Code Initialization - 
+		Page.Load event is fired allowing you to perform any initializations
+		Allows you to check IsPostback. If it's true, just let view state deserialization magic work
+		ViewState stores every changed property. Initializing a control in Page.Load, counts as change, so any control value you touch will be persisted. To streamline your view state, set properties in control tag. In cases where it is really easier to intialize control in code, consider disabling the view state, and initalizing the control every time in Page.Load
+		
+	3. Validation - 
+		ASP.Net included validation controls that can validate user input.
+		These controls fire after the page has loaded and before any other event take place.
+	
+	4. Event Handling - 
+		At this point the page is fully loaded and validated. ASP.Net will now fire all events that have taken place since last postback.
+		Immediate reponse events - These include clicking a Submit or some other button, image region or link in a rich web control
+		Change events - These include changing the selection in a control or text in text-box. 
+		These event fire immediately for web controls if AutoPostBack is set to True.
+		Otherwise they fire the next time the page is posted.

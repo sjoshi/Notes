@@ -1,0 +1,2297 @@
+LINQ Notes
+==========
+
+Here is what I did:
+
+First, use regedit (from the SysWOW64 folder) to search the registry for the CLSID(s) related to the command "WINWORD.EXE /Automation" , you might find more than one of them.
+(in my case this was: {000209FE-0000-0000-C000-000000000046} and {000209FF-0000-0000-C000-000000000046})
+
+Under those keys in HKEY_CLASSES_ROOT\CLSID\, add a string value AppID = {same value as the IDs}
+
+Then under HKEY_CLASSES_ROOT\AppID\ create a new key (folder) for each of these IDs, and inside each of them add a string value: RunAs = Interactive User
+ 
+Next go to Dcomcnfg (from the SysWOW64 folder) and search for those IDs. (there might be a third ID related to Winword.exe), in my case this was {00020906-0000-0000-C000-000000000046}.
+Note all those IDs, then right click on each of them, Properties, Security, and edit both the launch & access permissions to add and give Network Service and Interactive full permissions.
+
+The solution sounds so logical, it amazes me that Microsoft Support couldn't figure it out, and that no post on the internet was able to outline this solution.
+
+I hope others will benefit from this, specially with automating other applications too. I guess you just follow the same principle and search for the related commands (with /Automation) in the registry.
+ 
+ 
+private static double GetUnixEpoch(this DateTime dateTime) 
+{ 
+    var unixTime = dateTime.ToUniversalTime() -  
+        new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc); 
+ 
+    return unixTime.TotalSeconds; 
+} 
+And you can use it as such:
+
+var unixTime1 = DateTime.Now.GetUnixEpoch(); // precisely now 
+var unixTime2 = (DateTime.Now + new TimeSpan(0, 10, 0)).GetUnixEpoch(); // 
+
+/Convert Unix epoch time to .NET DateTime 
+
+private DateTime ConvertUnixEpochTime(long milliseconds)
+{ 
+	DateTime Fecha = new DateTime(1970,1,1,0,0,0,DateTimeKind.Utc);
+	return Fecha.ToLocalTime().AddMilliseconds(milliseconds); 
+}
+
+
+SP3D:-
+
+var grp = CodelistValueView.Where(x=>x.Namespace=="UDP" || x.Namespace=="REFDAT")
+			.Select(x=>new {NS=x.Namespace, Tablename=x.TableName, TableId=x.TableID})
+			.GroupBy(g=> new {g.NS, g.Tablename, g.TableId}, (g,x)=>g) //Select only key here
+			.GroupBy(x=>x.Tablename, x=>x) //Select key's.Tablename property
+			.Where(x=>x.Count() > 1)
+			.Select(x=>x.Where(a=>a.NS=="UDP").First()) //Get the child with UDP value and First one
+			.OrderBy(x=>x.Tablename);
+			
+grp.Dump();		
+
+
+JUserLogin
+   .GroupJoin (
+      JDObject, 
+      ju => ju.Oid, 
+      jd => jd.UIDCreator, 
+      (ju, userobjects) => 
+         new  
+         {
+            User = ju.UserLogin, 
+            ObjectCount = userobjects.Count ()
+         }
+   )
+
+public class GroupList
+{   
+	public HashSet<Feature> featureList;    
+	public override bool Equals(object o)    
+	{        
+		GroupList g = o as GroupList;        
+		if (g == null) return false;        
+		return featureList.SetEquals(g.featureList);    
+	}    
+	public override int GetHashCode()    
+	{        
+		return featureList.Aggregate(0, (hash, f) => hash ^ f.GetHashCode());    
+	}
+}
+
+public class Feature
+{    
+	public int qty;    
+	public override bool Equals(object o)    
+	{        
+		Feature f = o as Feature;        
+		if (f == null) return false;        
+		return qty == f.qty;    
+	}    
+	public override int GetHashCode()    
+	{        
+		return qty.GetHashCode();    
+	}
+}
+
+public static class KeyValuePair
+{
+    public static KeyValuePair<K, V> Create<K, V>(K key, V value)
+    {
+        return new KeyValuePair<K, V>(key, value);
+    }
+}
+
+var pair = KeyValuePair.Create(42, "The Answer");   
+
+Types are inferred on arguments passed into a generic method. You can take advantage of this feature to 
+reduce typing and write cleaner code. At the very least, you can provide a factory method
+
+
+IEnumerable<AcademicEvent> _events = GetAcademicCalendarEvents
+                            (data.Year, data.Term, data.Campus)
+                .SkipWhile(c => c.EventType != "TermBegins")
+                .TakeWhile(c => c.EventKey != "TermEnds");
+
+This code is broken. But the error is subtle. The TakeWhile method is not inclusive. The resulting IEnumerable will not include the event with the Key “TermEnds”, resulting in my later code inadvertently not showing some days at the end of the term. Given that the event that follows the TermEnds event may not always be the same, I didn’t really want to try to key off of the next possible event. What I really wanted to do was take items on the list until I reached the TermEnds event. Sounds like an easy enough extension method!
+
+public static IEnumerable<T> TakeUntilInclusive<T>   
+        (this IEnumerable<T> data, Func<T, bool> predicate)   
+{   
+    int index = 0;   
+    var enumerator = data.GetEnumerator();   
+    while (enumerator.MoveNext())   
+    {   
+        index++;   
+        if (predicate(enumerator.Current)) { break; }   
+    }   
+    enumerator.Dispose();   
+    return data.Take(index);   
+}  
+
+public static IEnumerable<T> TakeWhileInclusive<T>   
+    (this IEnumerable<T> data, Func<T, bool> predicate)   
+{   
+    return data.TakeUntilInclusive(p => !predicate(p));   
+}  
+
+The final version of the query looks like this:
+
+IEnumerable<AcademicEvent> _events = GetAcademicCalendarEvents   
+                        (data.Year, data.Term, data.Campus)   
+                .SkipWhile(c => c.EventType != "TermBegins")   
+                .TakeUntilInclusive(c => c.EventKey == "TermEnds");  
+
+Zip Me Up:
+
+If you have two sequences that you want to project from? Say you’ve got two 
+sequences of doubles that are the same length, and you want to project a 
+sequences of points.
+
+The operation of “project from two sequences of the same length” is called a 
+“zip join”, because its like doing up a zipper – you need each member of the 
+left sequence to correspond to a member of the right sequence. 
+
+	foos.Zip(bars, (foo, bar)=>MakeBlah(foo, bar))
+
+However, we decided that adding a query syntax for a relatively obscure 
+operation that is not actually supported by most relational databases was not 
+worth the cost of complicating the grammar and the syntactic translation rules.
+
+Here’s the source code:
+
+	public static IEnumerable<TResult> Zip<TFirst, TSecond, TResult>
+		(this IEnumerable<TFirst> first,
+		IEnumerable<TSecond> second,
+		Func<TFirst, TSecond, TResult> resultSelector)
+	{
+		if (first == null) throw new ArgumentNullException("first");
+		if (second == null) throw new ArgumentNullException("second");
+		if (resultSelector == null) throw new 
+ArgumentNullException("resultSelector");
+		return ZipIterator(first, second, resultSelector);
+	}
+
+	private static IEnumerable<TResult> ZipIterator<TFirst, TSecond, TResult>
+		(IEnumerable<TFirst> first,
+		IEnumerable<TSecond> second,
+		Func<TFirst, TSecond, TResult> resultSelector)
+	{
+		using (IEnumerator<TFirst> e1 = first.GetEnumerator())
+			using (IEnumerator<TSecond> e2 = second.GetEnumerator())
+				while (e1.MoveNext() && e2.MoveNext())
+					yield return resultSelector(e1.Current, e2.Current);
+	} 
+
+ public class CodeListResults    
+    {
+        public string File1Col1 { get; set; }
+        public string File1Col2 { get; set; }
+        public int File1Col3 { get; set; }
+
+        public string File2Col1 { get; set; }
+        public string File2Col2 { get; set; }
+        public int File2Col3 { get; set; }
+
+        public CodeListResultsStatus Status { get; set; }
+    }
+		
+I have some hierarchical data - each entry has an id and a (nullable) parent 
+entry id. I want to retrieve all entries in the tree under a given entry. This 
+is in a SQL Server 2005 database. I am querying it with LINQ to SQL in C# 3.5.
+
+var categories = from c in db.Categories
+                 select new Category
+                 {
+                     CategoryID = c.CategoryID,
+                     ParentCategoryID = c.ParentCategoryID,
+                     SubCategories = new List<Category>(
+                                      from sc in db.Categories
+                                      where sc.ParentCategoryID == c.CategoryID
+                                      select new Category {
+                                        CategoryID = sc.CategoryID, 
+                                        ParentProductID = sc.ParentProductID
+                                        }
+                                      )
+                             };
+
+
+CustID | OrderDate | Qty
+1      | 1/1/2008  | 100
+2      | 1/2/2008  | 200
+1      | 2/2/2008  | 350
+2      | 2/28/2008 | 221
+1      | 3/12/2008 | 250
+2      | 3/15/2008 | 2150
+
+To 
+
+CustID  | Jan- 2008 | Feb- 2008 | Mar - 2008 |
+1       | 100       | 350       |  250
+2       | 200       | 221       | 2150
+
+
+        List<CustData> myList = GetCustData();
+
+        var query = myList
+            .GroupBy(c => c.CustId)
+            .Select(g => new {
+                CustId = g.Key,
+                Jan = g.Where(c => c.OrderDate.Month == 1).Sum(c => c.Qty),
+                Feb = g.Where(c => c.OrderDate.Month == 2).Sum(c => c.Qty),
+                March = g.Where(c => c.OrderDate.Month == 3).Sum(c => c.Qty)
+            });
+
+GroupBy in Linq does not work the same as SQL. In SQL, you get the key and 
+aggregates (row/column shape). In Linq, you get the key and any elements as 
+children of the key (hierarchical shape). To pivot, you must project the 
+hierarchy back into a row/column form of your choosing.
+link|flag
+
+You can use lambda expressions in lieu of CASE syntax.
+
+IEnumerable<int> values = Enumerable.Range(1, 3);
+Func<int, string> switchFunc = x =>
+{
+    switch (x)
+    {
+        case 1: return "ONE";
+        case 2: return "TWO";
+        default: return "***";
+    }
+};
+
+var switchedValues = values.Select(value => switchFunc.Invoke(value));
+foreach (string value in switchedValues)
+{
+    Console.WriteLine(value);
+}
+
+Unions
+
+	var q = (
+	from c in dc.Customers
+	join s in dc.Suppliers on c.City equals s.City
+	select new { c.City, c.CompanyName, Type = "Customer" })
+
+	.Union(
+	from c in dc.Customers
+	join s in dc.Suppliers on c.City equals s.City
+	select new { s.City, s.CompanyName, Type = "Supplier"});
+
+
+ThreadPools
+-----------
+
+Well, for a ClickOnce app that I deployed in the past, we used the 
+Microsoft.VisualBasic namespace to handle the splash screen threading. You can 
+reference and use the Microsoft.VisualBasic assembly from C# in .NET 2.0 and it 
+provides a lot of nice services.
+
+   1. Have the main for inherit from 
+Microsoft.VisualBasic.WindowsFormsApplicationBase
+   2. Override the "OnCreateSplashScreen" method like so:
+
+      protected override void OnCreateSplashScreen()
+      {
+          this.SplashScreen = new SplashForm();
+          this.SplashScreen.TopMost = true;
+      }
+
+Very straightforward, it shows your SplashForm (which you need to create) while 
+loading is going on, then closes it automatically once the main form has 
+completed loading.
+
+Assuming that Form1 - is your main form and SplashForm is top level, borderles 
+nice splash form:
+
+private void Form1_Load(object sender, EventArgs e)
+{
+    Hide();
+    bool done = false;
+    ThreadPool.QueueUserWorkItem((x) =>
+    {
+        using (var splashForm = new SplashForm())
+        {
+            splashForm.Show();
+            while (!done)
+                Application.DoEvents();
+            splashForm.Close();
+        }
+    });
+
+    Thread.Sleep(3000); // Emulate hardwork
+    done = true;
+    Show();
+}
+
+SynchronizationContext context;
+
+	void start()
+	{
+		//First store the current context
+		//to call back to it later
+		context = SynchronizationContext.Current; 
+
+		//Start a thread and make it call
+		//the async method, for example: 
+		Proxy.BeginCodeLookup(aVariable, 
+						new AsyncCallback(LookupResult), 
+						AsyncState);
+		//Now continue with what you were doing 
+		//and let the lookup finish
+	}
+
+	void LookupResult(IAsyncResult result)
+	{
+		//when the async function is finished
+		//this method is called. It's on
+		//the same thread as the the caller,
+		//BeginCodeLookup in this case.
+		result.AsyncWaitHandle.WaitOne();
+		var LookupResult= Proxy.EndCodeLookup(result);
+		//The SynchronizationContext.Send method
+		//performs a callback to the thread of the 
+		//context, in this case the main thread
+		context.Send(new SendOrPostCallback(OnLookupCompleted),
+					 result.AsyncState);                         
+	}
+
+	void OnLookupCompleted(object state)
+	{
+		//now this code will be executed on the 
+		//main thread.
+	}
+
+
+TypeConverter
+---------------
+
+Guid g = new Guid();
+TypeConverter tc = TypeDescriptor.GetConverter(typeof(Guid));
+byte[] b2 = (byte[])tc.ConvertTo(g, typeof(byte[])); // throws exception
+
+The variable tc gets set to System.ComponentModel.GuidConverter which doesn't 
+support conversions to byte[]. Can I have two TypeConverters for the same class? 
+Even if I could, wouldn't I need to prepend an attribute to the source code of 
+the class to assign a TypeConverter?
+
+You can change the registered TypeConverter for something using 
+TypeDescriptor.AddAttributes; this isn't quite the same as Convert.ChangeType, 
+but it may suffice:
+
+using System;
+using System.ComponentModel;
+static class Program
+{
+    static void Main()
+    {
+        TypeDescriptor.AddAttributes(typeof(Guid), new TypeConverterAttribute(
+            typeof(MyGuidConverter)));
+
+        Guid guid = Guid.NewGuid();
+        TypeConverter conv = TypeDescriptor.GetConverter(guid);
+        byte[] data = (byte[])conv.ConvertTo(guid, typeof(byte[]));
+        Guid newGuid = (Guid)conv.ConvertFrom(data);
+    }
+}
+
+class MyGuidConverter : GuidConverter
+{
+    public override bool CanConvertFrom(ITypeDescriptorContext context, Type 
+sourceType)
+    {
+        return sourceType == typeof(byte[]) || base.CanConvertFrom(context, 
+sourceType);
+    }
+    public override bool CanConvertTo(ITypeDescriptorContext context, Type 
+destinationType)
+    {
+        return destinationType == typeof(byte[]) || base.CanConvertTo(context, 
+destinationType);
+    }
+    public override object ConvertFrom(ITypeDescriptorContext context, 
+System.Globalization.CultureInfo culture, object value)
+    {
+        if (value != null && value is byte[])
+        {
+            return new Guid((byte[])value);
+        }
+        return base.ConvertFrom(context, culture, value);
+    }
+    public override object ConvertTo(ITypeDescriptorContext context, 
+System.Globalization.CultureInfo culture, object value, Type 
+destinationType)
+    {
+        if (destinationType == typeof(byte[]))
+        {
+            return ((Guid)value).ToByteArray();
+        }
+        return base.ConvertTo(context, culture, value, destinationType);
+    }
+}
+
+
+dataSet.Tables[0].AsEnumerable().Where(c => c.Field<int>("ageColumn") > 3 ||
+     c.Field<int>("ageColumn") < 5).Count();
+
+
+Do you need it to be dynamic? Perhaps store the query itself as a lambda in the 
+Tag property of your label:
+
+Predicate<DataColumn> clause = c => c.Field<int>("ageColumn") > 3     && 
+c.Field<int>("ageColumn") < 5;label1.Tag = clause;... then re-evaluate your 
+query when the label is clicked:
+
+var clause = (sender as Label).Tag as Predicate<DataColumn>; myDataSource = 
+dataSet.Tables[0].AsEnumerable().Where(clause);
+
+
+
+private object GetDataEntityObjectFromAnonymousType(object anonymousObject)
+{
+    // Get the anonymous type's Type so that we can get a property from it.
+    Type anonymousObjectType = anonymousObject.GetType();
+
+    // If the dataItemType does not have a DataObject property return null,
+    // otherwise return the DataObject behind the property.
+    return (anonymousObjectType.GetProperty("DataEntityObject") == null)
+        ? null
+        : 
+anonymousObjectType.GetProperty("DataEntityObject").GetValue(anonymousOb
+ject, null);
+}
+
+We can then reference the selected person and call methods or set properties.
+
+Person person =
+    
+(Person)GetDataEntityObjectFromAnonymousType(this.dataGridView1.SelectedRows
+[0].DataBoundItem);
+
+person.DoStuff();
+
+
+
+public class TypedProperty<T> : Property
+{
+ public T TypedValue
+ {
+   get { return (T)Convert.ChangeType(base.Value, typeof(T)); }
+   set { base.Value = value.ToString();}
+ }
+}
+
+bool TypeValid()
+{
+    // Get the TypeCode from the Primitive Type
+    TypeCode code = Type.GetTypeCode(typeof(PrimitiveDataType));
+
+    // All of the TypeCode Enumeration refer Primitive Types
+    // with the exception of Object and Empty (Null).
+    // Since I am willing to allow Null Types (at this time)
+    // all we need to check for is Object!
+    switch (code)
+    {
+        case TypeCode.Object:
+            return false;
+        default:
+            return true;
+    }
+}
+
+This aspect of LINQ is called deferred execution. When the first element of the 
+result is requested, the Select transformation asks the Where transformation for 
+its first element. The Where transformation asks the list for its first element, 
+checks whether the predicate matches (which it does in this case), and returns 
+that element back to Select. That in turn extracts the name and returns it as 
+the result. 
+
+The right sequence is buffered, but the left sequence is streamed—so if you want 
+to join a massive sequence to a tiny one, it’s worth using the tiny one as the 
+right sequence if you can.
+
+Zip method for stitching two enumerable sequences together (or the SequenceEqual 
+method) you find that you can' use foreach on both sequences, since that would 
+perform a cross-join. You need to use the iterator directly for one of them:
+
+static IEnumerable<T> Zip<T>(this IEnumerable<T> left,
+    IEnumerable<T> right)
+{
+    using (var iter = right.GetEnumerator())
+    {
+        // consume everything in the first sequence
+        foreach (var item in left)
+        {
+            yield return item;
+
+            // and add an item from the second sequnce each time (if we can)
+            if (iter.MoveNext())
+            {
+                yield return iter.Current;
+            }
+        }
+        // any remaining items in the second sequence
+        while (iter.MoveNext())
+        {
+            yield return iter.Current;
+        }                
+    }            
+}
+
+var dt = new DataTable();
+var columns = dt.Columns.Cast<DataColumn>();
+dt.AsEnumerable().
+Select(dataRow => columns.
+Select(column => new { Column = column.ColumnName, Value = dataRow[column] })
+.ToDictionary(data => data.Column, data => data.Value));
+
+static bool SequenceEqual<T>(this IEnumerable<T> left,
+    IEnumerable<T> right)
+{
+    var comparer = EqualityComparer<T>.Default;
+
+    using (var iter = right.GetEnumerator())
+    {
+        foreach (var item in left)
+        {
+            if (!iter.MoveNext()) return false; // first is longer
+            if (!comparer.Equals(item, iter.Current))
+                return false; // item different
+        }
+        if (iter.MoveNext()) return false; // second is longer
+    }
+    return true; // same length, all equal            
+}
+
+Degenerate Query Expression;
+
+What happens if our select clause does nothing, effectively returning the same 
+sequence as it’s given? The answer is that the compiler removes that call to 
+Select—but only if there are other operations being performed within the query 
+expression. 
+
+For example, the following query expression just selects all the defects in the 
+system:
+	
+	from defect in SampleData.AllDefects
+	select defect
+
+This is known as a degenerate query expression. The compiler deliberately 
+generates a call to Select even though it seems to do nothing:
+
+	SampleData.Select (defect => defect)
+
+When other operations are involved, there’s no need for the compiler to keep 
+“no- op” select clauses
+
+	from bug in SampleData.AllDefects 
+	where bug.Status != Status.Closed
+	where bug.AssignedTo == SampleData.Users.TesterTim
+	select bug
+
+We now don’t need the final call to Select, so the translated code is just this:
+	
+	SampleData.AllDefects.Where (bug => bug.Status != Status.Closed)
+                         .Where (bug => bug.AssignedTo == tim)
+
+
+A lambda expression can reference the local variables and parameters of the 
+method in which it's defined. For example:
+
+	delegate int NumericSequence (  );
+
+	class Test
+	{
+	  static void Main(  )
+	  {
+		int seed = 0;
+		NumericSequence natural = (  ) => seed++;
+		Console.WriteLine (natural(  ));           // 0
+		Console.WriteLine (natural(  ));           // 1
+	  }
+	}
+
+Local variables and parameters referenced by a lambda expression are called 
+outer variables. In our example, seed is an outer variable referenced by the 
+lambda expression ( ) => seed++. Outer variables are captured, meaning their 
+lifetime is extended to that of the lambda expression.
+
+A local variable instantiated within a lambda expression is unique per 
+invocation of the delegate instance. If we refactor our previous example to 
+instantiate seed within the lambda expression, we get a different (in this case, 
+undesirable) result:
+
+	delegate int NumericSequence (  );
+
+	class Test
+	{
+	  static NumericSequence Natural (  )
+	  {
+		return (  ) => {int seed = 0; return seed++; };
+	  }
+
+	  static void Main(  )
+	  {
+		NumericSequence natural = Natural (  );
+		Console.WriteLine (natural(  ));                 // 0
+		Console.WriteLine (natural(  ));                 // 0
+	  }
+	}
+
+
+static void RunTest(List<MyData> data, string caption)
+{
+	GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced);
+	GC.WaitForPendingFinalizers();
+	GC.WaitForFullGCComplete();
+	Stopwatch watch = Stopwatch.StartNew();
+	for (int i = 0; i < 500; i++)
+	{
+		data.ToDataTable();
+	}
+	watch.Stop();
+	Console.WriteLine(caption + "\t" + watch.ElapsedMilliseconds);
+}
+
+
+How about this? It avoids the exception often thrown by the in-built recursive 
+search (i.e. you get access-denied to a single folder, and your whole search 
+dies), and is lazily evaluated (i.e. it returns results as soon as it finds 
+them, rather than buffering 2000 results). The lazy behaviour lets you build 
+responsive UIs etc, and also works well with LINQ (especially First(), Take(), 
+etc).
+
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+
+static class Program { // formatted for vertical space
+    static void Main() {
+        foreach (string match in Search("c:\\", "*.xml")) {
+            Console.WriteLine(match);
+        }
+    }
+    static IEnumerable<string> Search(string root, string searchPattern) 
+	{
+        Queue<string> dirs = new Queue<string>();
+        dirs.Enqueue(root);
+        
+		while (dirs.Count > 0) 
+		{
+            string dir = dirs.Dequeue();
+
+            // files
+            string[] paths = null;
+            try 
+			{
+                paths = Directory.GetFiles(dir, searchPattern);
+            } catch { } // swallow
+
+            if (paths != null && paths.Length > 0) 
+			{
+                foreach (string file in paths) 
+				{
+                    yield return file;
+                }
+            }
+
+            // sub-directories
+            paths = null;
+            try 
+			{
+                paths = Directory.GetDirectories(dir);
+            } catch { } // swallow
+
+            if (paths != null && paths.Length > 0)
+			{
+                foreach (string subDir in paths)
+				{
+                    dirs.Enqueue(subDir);
+                }
+            }
+        }
+    }
+}
+
+
+The "null" trick will set it to the zero value for the type, which is not 
+necessarily the same as the default for the property. Firstly, if it is a new 
+object, why not just leave it alone? Alternatively, use TypeDescriptor:
+
+PropertyDescriptor prop = TypeDescriptor.GetProperties(foo)["Bar"];
+if (prop.CanResetValue(foo)) prop.ResetValue(foo);
+
+This respects both [DefaultValue] and the Reset{name}() patterns (as used by 
+binding and serialization), making it very versatile and re-usable.
+
+
+Late evaluation is precisely why IEnumerable is so good. Here's an example 
+workflow:
+
+	IEnumerable<string> files = FindFileNames();
+	IEnumerable<string> matched = files.Where( f => f.EndsWith(".txt") );
+	IEnumerable<string> contents = matched.Select( f => File.ReadAllText(f) );
+	bool foundContents = contents.Any( s => s.Contains("orion") );
+
+For the impatient, this gets a list of filenames, filters out .txt files, then 
+sets the foundContents to true if any of the text files contain the word orion.
+
+If you write the code using IEnumerable as above, you will only load each file 
+one by one as you need them. Your memory usage will be quite low, and if you 
+match on the first file, you prevent the need to look at any subsequent files. 
+It's great.
+
+If you wrote this exact same code using arrays, you'd end up loading all the 
+file contents up front, and only then (if you have any RAM left) would any of 
+them be scanned. Hopefully this gets the point across about why lazy lists are 
+so good.
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+static class Program
+{
+    static void Main()
+    {
+        // first and second are logically equivalent
+        SimpleTableRow<int> first = new SimpleTableRow<int>(1, 2, 3, 4, 5, 6),
+            second = new SimpleTableRow<int>(1, 2, 3, 4, 5, 6);
+
+        if (first.Equals(second) && first.GetHashCode() != second.GetHashCode())
+        { // proven Equals, but GetHashCode() disagrees
+            Console.WriteLine("We have a problem");
+        }
+        HashSet<SimpleTableRow<int>> set = new HashSet<SimpleTableRow<int>>();
+        set.Add(first);
+        set.Add(second);
+        // which confuses anything that uses hash algorithms
+        if (set.Count != 1) Console.WriteLine("Yup, very bad indeed");
+    }
+}
+class SimpleTableRow<T> : IEquatable<SimpleTableRow<T>>
+{
+
+    public SimpleTableRow(int id, params T[] values) {
+        this.Id = id;
+        this.Values = values;
+    }
+    public int Id { get; private set; }
+    public T[] Values { get; private set; }
+
+    public override int GetHashCode() // wrong
+    {
+        return Id.GetHashCode() ^ Values.GetHashCode();
+    }
+    /*
+    public override int GetHashCode() // right
+    {
+        int hash = Id;
+        if (Values != null)
+        {
+            hash = (hash * 17) + Values.Length;
+            foreach (T t in Values)
+            {
+                hash *= 17;
+                if (t != null) hash = hash + t.GetHashCode();
+            }
+        }
+        return hash;
+    }
+    */
+    public override bool Equals(object obj)
+    {
+        return Equals(obj as SimpleTableRow<T>);
+    }
+    public bool Equals(SimpleTableRow<T> other)
+    {
+        // Check for null
+        if (ReferenceEquals(other, null))
+            return false;
+
+        // Check for same reference
+        if (ReferenceEquals(this, other))
+            return true;
+
+        // Check for same Id and same Values
+        return Id == other.Id && Values.SequenceEqual(other.Values);
+    }
+}
+
+
+IQueryable Interface
+---------------------
+The IQueryable interface has been designed to help in situations like this. It 
+allows us to receive all the information contained in a query as one big 
+expression tree instead of having each operator receive partial information. 
+Once the expression tree is ready, it can be analyzed to do whatever we want in 
+response to the query. IQueryable defines the pattern for you to gather up a 
+user’s query and present it to your processing engine as a single expression 
+tree that you can either transform or interpret.
+
+The difference is that IEnumerable<T> represents an enumeration, while 
+IQueryable<T> represents a query. An instance of a type that implements 
+IQueryable<T> contains all the information needed to execute a query. Think of 
+it as a description of what you want done when the query is enumerated.
+Note that the IQueryable<T> interface implements IEnumerable<T> so that
+the results of the query it encompasses can be enumerated. Enumeration should
+force the execution of the expression tree associated with an IQueryable object
+
+Here is the declaration of IQueryable<T>:
+
+	interface IQueryable<T> : IEnumerable<T>, IQueryable
+	{
+	}
+
+	interface IEnumerable<T> : IEnumerable
+	{
+		IEnumerator<T> GetEnumerator();
+	}
+	interface IEnumerable
+	{
+		IEnumerator GetEnumerator();
+	}
+	interface IQueryable : IEnumerable
+	{
+		Type ElementType { get; }
+		Expression Expression { get; }
+		IQueryProvider Provider { get; }
+	}
+
+We have to implement the members of the IQueryProvider interface in order
+to handle the execution of the queries. Here is how it is declared:
+
+	public interface IQueryProvider
+	{
+		IQueryable CreateQuery(Expression expr);
+		IQueryable<TElement> CreateQuery<TElement>(Expression expr);
+		object Execute(Expression expr);
+		TResult Execute<TResult>(Expression expr);
+	}
+
+Use AsQueryable with LINQ to Objects and SQL:
+	
+	When you use AsQueryable on a query, it is converted to an instance of 
+IQueryable. Applying further transformations like filter or sort, cause the 
+lambda statements to be converted to expression trees. Depending on the 
+provider, these will be converted to domain specific syntax and fall back to 
+IEnumerable<T> specs if the query only implements that.
+
+	public static IQueryable<Product> Top50(ctx db)
+	{
+		return db.Products.Where(p=>p.Count()>50);
+	}
+
+	public static IQueryable<Product> Filter(IEnumerable<Product> prods)
+	{
+		Expression<Func<Product,bool>> filter=
+			p=>p.UnitsInStock >0 || !p.IsDiscontinued;
+		
+		return prods.AsQueryable().Where(filter);
+	}
+	
+	public void DisplayProducts()
+	{
+		var db = NorthwindDataContext();
+		var prods = Filter(Top50(db));
+	}
+
+	The Filter takes in an IEnumerable since this is the lowest common 
+denominator implemented by all generic collections.
+	We convert the IEnumerable<Product> to IQueryable since we want the filter 
+to be applied on the database for collections that implement IQueryable. If 
+the collection does not implement it, the filter is applied in memory.
+
+Getting DataSet Changes:
+
+	var changes =
+          from change in changesTable.AsEnumerable()
+          select new {
+            State = change.RowState,
+            OriginalTitle = change.Field<String>("Title", 
+DataRowVersion.Original),
+            NewTitle = change.RowState != DataRowState.Deleted ?
+              change.Field<String>("Title", DataRowVersion.Current) : 
+String.Empty
+          };
+
+	dataGridView1.DataSource = changes.ToList();
+
+
+To get non-interesecting data
+
+List<int> a = 1,2,3
+List<int> b = 2,4,5
+
+output
+1,3,4,5
+
+
+The trick is to use Except with the intersection of the two lists.
+This should give you the list of non-intersecting elements:
+
+	var nonIntersecting = a.Union(b).Except(a.Intersect(b));
+
+Filter a collection of items from contents of another collection
+
+	foreach(string s in filters) {
+		if(s.Length == 0) continue;
+		string tmp = s; // because of "capture" problem
+		index = index.Where(i => i.FilterNames.Contains(tmp));
+	}
+	return index;
+
+
+What kind of queries do you need to run? If it's just equality, that's 
+relatively easy:
+
+public static IEnumerable<object[]> WhereEqual(
+    this IEnumerable<object[]> source,
+    Collection<string> columnNames,
+    string column,
+    object value)
+{
+    int columnIndex = columnNames.IndexOf(column);
+    if (columnIndex == -1)
+    {
+        throw new ArgumentException();
+    }
+    return source.Where(row => Object.Equals(row[columnIndex], value);
+}
+
+
+Using Empty:
+
+	int[][] numbers =
+	{
+	  new int[] { 1, 2, 3 },
+	  new int[] { 4, 5, 6 },
+	  null                     // this null makes the query below fail.
+	};
+
+	IEnumerable<int> flat = numbers.SelectMany (innerArray => innerArray);
+
+	Empty in conjunction with ?? fixes the problem:
+
+	IEnumerable<int> flat = numbers
+	  .SelectMany (innerArray => innerArray ?? Enumerable.Empty <int>(  ));
+
+	foreach (int i in flat)
+	  Console.Write (i + " ");     // 1 2 3 4 5 6
+
+
+
+public static IEnumerable<T> Where(this IEnumerable<T> source,
+                                   Func<T, bool> predicate)
+{
+    // Eagerly executed
+    if (source == null)
+    {
+        throw new ArgumentNullException("source");
+    }
+    if (predicate == null)
+    {
+        throw new ArgumentNullException("predicate");
+    }
+    return WhereImpl(source, predicate);
+}
+
+private static IEnumerable<T> WhereImpl(IEnumerable<T> source,
+                                        Func<T, bool> predicate)
+{
+    // Lazily executed
+    foreach (T element in source)
+    {
+        if (predicate(element))
+        {
+            yield return element;
+        }
+    }
+} 
+
+We have the same scenario - WCF communications to a server, the server uses 
+LINQtoSQL.
+
+We use .ToArray() when requesting objects from the server, because it's 
+"illegal" for the client to change the list. (Meaning, there is no purpose to 
+support ".Add", ".Remove", etc).
+
+While still on the server, however, I would recommend that you leave it as it's 
+default (which is not IEnumerable, but rather IQueryable). This way, if you want 
+to filter even more based on some criteria, the filtering is STILL on the SQL 
+side until evaluated.
+
+This is a very important point as it means incredible performance gains or 
+losses depending on what you do.
+
+EXAMPLE:
+
+// This is just an example... imagine this is on the server only. It's the
+// basic method that gets the list of clients.
+private IEnumerable<Client> GetClients()
+{
+    var result = MyDataContext.Clients;  
+
+    return result.AsEnumerable();
+}
+
+// This method here is actually called by the user...
+public Client[] GetClientsForLoggedInUser()
+{
+    var clients = GetClients().Where(client=> client.Owner == currentUser);
+
+    return clients.ToArray();
+}
+
+Do you see what's happening there? The "GetClients" method is going to force a 
+download of ALL 'clients' from the database... THEN the Where clause will happen 
+in the GetClientsForLoogedInUser method to filter it down.
+
+Now, notice the slight change:
+
+private IQueryable<Client> GetClients()
+{
+    var result = MyDataContext.Clients;  
+
+    return result.AsQueryable();
+}
+
+Now, the actual evaluation won't happen until ".ToArray" is called... and SQL 
+will do the filtering. MUCH better!
+
+
+Q: My class contains a Dictionary<T, S> dict, and I want to expose a 
+ReadOnlyCollection<T> of the keys. How can I do this without copying the 
+Dictionary<T, S>.KeyCollection dict.Keys to an array and then exposing the array 
+as a ReadOnlyCollection?
+
+I want the ReadOnlyCollection to be a proper wrapper, ie. to reflect changes in 
+the underlying Dictionary, and as I understand it copying the collection to an 
+array will not do this (as well as seeming inefficient - I don't actually want a 
+new collection, just to expose the underlying collection of keys...). Any ideas 
+would be much appreciated!
+
+A:	Try 
+	ReadOnlyCollection< T > r = new ReadOnlyCollection< T >( d.Keys.ToList() );
+	
+	For .Net 2.0
+	ReadOnlyCollection<int> roc = new ReadOnlyCollection<int>((new 
+List<int>((IEnumerable<int>)dict.Keys)));
+
+ReadOnlyCollection is synchronized with the backing store. So changes are 
+reflected. To get a "real" ReadOnlyCollection, try;
+
+	ReadOnlyCollection<T> readOnlyCollection = foos.ToList<T>().AsReadOnly();
+
+Then you can expose it as a property of your class.
+
+------------------------------------------------------------------------------
+What is the best way to get a value from a ICollection
+
+var foo = myICollection.OfType<YourType>().FirstOrDefault();
+    // or use a query
+    var bar = (from x in myICollection.OfType<YourType>() where x.SomeProperty = 
+someValue select x)
+       .FirstOrDefault();
+
+List->ReadOnlyCollection->AndBack
+
+	C# equivalents of the above:
+	List<MyObject> myList = new List<MyObject>();
+	ReadOnlyCollection<MyObject> myReadOnlyCollection = myList.AsReadOnly();
+
+	List<MyObject> myList2 = new List<MyObject>(myReadOnlyCollection);
+
+So in SOM..
+
+List<PermissionGroup> grps = new List<PermissionGroup>(oModel.PermissionGroups);
+
+grps.ForEach(g =>
+    {
+        if (g.ToString().Equals(oTreeNode.Text))
+            oModel.ActivePermissionGroup = g;
+    });
+
+----------------------------------------------------------------------------
+
+public static IEnumerable<IEnumerable<T>> Partition<T>
+    (this IEnumerable<T> source, int size)
+{
+    T[] array = null;
+    int count = 0;
+    foreach (T item in source)
+    {
+        if (array == null)
+        {
+            array = new T[size];
+        }
+        array[count] = item;
+        count++;
+        if (count == size)
+        {
+            yield return new ReadOnlyCollection<T>(array);
+            array = null;
+            count = 0;
+        }
+    }
+    if (array != null)
+    {             
+        Array.Resize(ref array, count);
+        yield return new ReadOnlyCollection<T>(array);
+    }
+}
+
+------------------------------------------------------------------------------
+
+It is also possible to declare a lambda expression. An expression can be invoked 
+in a LINQ to SQL query by calling the Compile() and Invoke() method. Make sure 
+you also use the AsEnumerable() method.
+
+Expression<Func<Employee, string>> FormattedAddress = (e) => e.Address + " " + 
+e.PostalCode + " " + e.City;
+ 
+var employeesServer2 = from emp in dc.Employees.AsEnumerable()
+                     select new
+                     {
+                       EmployeeID = emp.EmployeeID,
+                       FirstName = emp.FirstName,
+                       LastName = emp.LastName,
+                       FormattedAddress = FormattedAddress.Compile().Invoke(emp)
+                     };
+
+--------------------------------------------------------------------------
+
+Q: How to compare two ICollections contain same objects
+A:   First compare the .Count of the collections if they have the same count the 
+do a brute force compare on all elements. Worst case scenarios is O(n). This is 
+in the case the order of elements needs to be the same.
+
+The second case where the order is not the same, you need to use a dictionary to 
+store the count of elements found in the collections: Here's a possible 
+algorithm
+
+    * Compare collection Count : return false if they are different
+    * Iterate the first collection
+          o If item doesn't exist in dictionary then add and entry with Key = 
+Item, Value = 1 (the count)
+          o If item exists increment the count for the item int the dictionary;
+    * Iterate the second collection
+          o If item is not in the dictionary the then return false
+          o If item is in the dictionary decrement count for the item
+                + If count == 0 the remove item;
+    * return Dictionary.Count == 0;
+
+
+
+--------------------------------------------------------------------
+
+With intersect it would be done like this:
+
+var matches = ((from f in foo 
+                select f)
+              .Intersect(
+                  from b in bar 
+                  select b, StringComparer.InvariantCultureIgnoreCase))
+
+
+List<string> uids = new List<string>( arrayofuids );
+
+	from xx in table
+	where uids.Contains( xx.uid.ToString() )
+	select xx
+
+-------------------------------------------------------------------------
+
+Collections do not implement enumerators; instead, they provide enumerators, via 
+the interface IEnumerable:
+
+	public interface IEnumerable
+	{
+	  IEnumerator GetEnumerator(  );
+	}
+
+
+IEnumerator and IEnumerable are nearly always implemented in conjunction with 
+their extended generic versions:
+
+	public interface IEnumerator<T> : IEnumerator, IDisposable
+	{
+	  T Current { get; }
+	}
+
+	public interface IEnumerable<T> : IEnumerable
+	{
+	  IEnumerator<T> GetEnumerator(  );
+	}
+
+It's standard practice for collection classes to publicly expose IEnumerable<T>, 
+while "hiding" the nongeneric IEnumerable through explicit interface 
+implementation. This is so that if you directly call GetEnumerator( ), you get 
+back the type-safe generic IEnumerator<T>.
+
+
+	public class MyGenCollection : IEnumerable<int>
+	{
+	  int[] data = {1, 2, 3};
+
+	  public IEnumerator<int> GetEnumerator(  )
+	  {
+		foreach (int i in data)
+		  yield return i;
+	  }
+
+	  IEnumerator IEnumerable.GetEnumerator(  )    // Explicit implementation
+	  {                                           // keeps it hidden.
+		return GetEnumerator (  );
+	  }
+	}
+
+Because IEnumerable<T> implements IEnumerable, we must implement both the 
+generic and nongeneric versions of GetEnumerator. In accordance with standard 
+practice, we've implemented the nongeneric version explicitly. It can simply 
+call the generic GetEnumerator because IEnumerator<T> implements IEnumerator.
+
+Converting ToList, ToArray or ToDictionary:-
+
+If you import the System.Linq namespace, you can convert an ArrayList to 
+a generic List by calling OfType and then ToList:
+
+	ArrayList al = new ArrayList(  );
+	al.AddRange ( new[] { 1, 5, 9 } );
+	List <int> list = al.OfType <int>().ToList(  );
+
+
+ToArray and ToList are also useful when you want to request immediate execution
+of a query or cache the result of a query. When invoked, these operators 
+completely enumerate the source sequence on which they are applied to build an
+image of the elements returned by this sequence.
+
+The ToDictionary operator creates a dictionary, which organizes data by keys
+
+  Dictionary<String, Book> isbnRef =
+              SampleData.Books.ToDictionary(book => book.Isbn);
+
+Here we create a dictionary of books that is indexed by each book’s ISBN. A 
+variable of this kind can be used to find a book based on its ISBN:
+  
+    Book linqRules = isbnRef["0-111-77777-2"];
+
+Getting a Sequence from a Collection :-
+
+LINQ does not work on Collections, but rather Sequences. It soon dawned on me 
+that ControlCollection does not qualify as a Sequence because it does not 
+implement IEnumerable<T>, but rather IEnumerable. This led me to uncharted 
+territory: how do I get an IEnumerable<T> from an IEnumerable? 
+
+Microsoft was gracious enough to provide an IEnumerable extension method that 
+will cast an IEnumerable to an IEnumerable<T>. Fittingly, this method is named 
+Cast<T>(). 
+
+	var q = from c in this.Controls.Cast<Control>()
+          select c;
+
+	var q = from c in this.Controls.Cast<Control>()
+		      .Where(c => !"".Equals(errorProvider1.GetError(c)))
+			     select c;
+
+	MessageBox.Show(q.Count() > 0 ? "There are errors!" : "No errors!");
+
+
+LAMBDA EXPRESSIONS AND FUNC SIGNATURES :-
+	
+The standard query operators utilize generic Func<> delegates. Func is a family 
+of general-purpose generic delegates in System.Linq. The last parameter in the 
+generic definition of a Func<> is always the return type
+
+Hence, Func<TSource, bool> matches a TSource=>bool lambda expression: one that 
+accepts a TSource argument and returns a bool value.
+
+	Similarly, Func<TSource,TResult> matches a TSource=>TResult lambda 
+expression.
+	
+	TSource is determined by the input sequence. TResult and TKey are inferred 
+from your lambda expression.
+
+Here divide is a function that takes two integers and returns a double:
+
+	Func<int, int, double> divide;
+	divide = (x,y)=>(double)x/(double)y;
+
+
+To represent void-returning functions using Action<>:
+
+	Action<double> write = (aDouble)=>Console.WriteLine("Result: " + aDouble);
+	write(divide(2,3));
+
+Expression represent function defn that can be compiled and subsequently invoked 
+at runtime:
+
+		Expression<Func<int, int, double>> divideBody;
+		divideBody=(x,y)=>(double)x/(double)y;
+
+		Func<int, int, double> divide2 = divideBody.Compile();
+		write(divide2(20,3));
+
+Extension Methods:-
+
+	Extension methods allow an existing type to be extended with new methods 
+without altering the definition of the original type. An extension method is 
+a static method of a static class, where the this modifier is applied to the 
+first parameter. The type of the first parameter will be the type that is 
+extended. 
+	
+	For example:
+
+	public static class StringHelper
+	{
+	  public static bool IsCapitalized (this string s)
+	  {
+		if (string.IsNullOrEmpty(s)) return false;
+		return char.IsUpper(s[0]);
+	  }
+	}
+
+	Extension methods can apply to interfaces:
+
+	using System;
+	using System.Collections.Generic;
+
+	static class Test
+	{
+	  static void Main(  )
+	  {
+		var strings = new string[] { "a", "b", null, "c"};
+		foreach (string s in strings.StripNulls(  ))
+		  Console.WriteLine(s);
+	  }
+	  static IEnumerable<T> StripNulls<T> (this IEnumerable<T> seq)
+	  {
+		foreach (T t in seq)
+		  if (t != null)
+			yield return t;
+	  }
+	}
+
+Select Operator:-
+	The Select operator is used to create an output sequence of one type of 
+element from an input sequence of another type of element. We use S with or 
+without subscript to indicate a collection type (e.g. IEnumerable<>, 
+ICollection<>) and T, with or without subscript, to indicate the type of 
+elements in that collection.
+
+	There are 2 prototypes of this method
+		
+		public static IEnumerable<S> Select<T,S>(
+				this IEnumerable<T> source,
+				Funct<T,S> selector);
+		
+		e.g
+		string[] names = {"Sunit Joshi", "Kevin Dee", "John Simpson"};
+		IEnumerable<int> nameLength = names.Select(p=> new{p.Length});
+					S		T
+					
+	When calling Select, you pass a delegate to a selector method via the 
+selector argument. Your selector method must accept a type T as input, where 
+T is the type of elements in the input sequence, and it returns a type S 
+element. Select will call your method for each element in the sequence. Your 
+selector method will select the portions of the input element it is 
+interested in, creating a new, possibly different typed element, which may 
+be of anonymous type and return it.
+
+The second Select prototype
+	
+	public static IEnumerable<S> Select<T,S>(
+			this IEnumerable<T> source, Func<T,int,S> selector);
+
+	In this an additional integer is passed to the selector method delegate and 
+is the zero-based index of the element in the input sequence.
+
+	Note that Projection operators whose selector methods instantiate anonymous 
+	types to return must have their output sequence assigned to a variable whose 
+	type is specified with the var keyword.
+
+
+SelectMany Operator:-
+	This is used to create a one-to-many output projection sequence over an 
+input sequence. While the Select operator will return one output element for 
+every input element, SelectMany will return zeros or more output element for 
+every input element. It will return the concatenated output sequence from 
+each call to your selector method.
+
+
+Take Operator:-
+	The Take operator returns a specified number of elements from the input 
+sequence starting from the beginning of the sequence.
+
+	string[] names = {"Shiv", "Bary", "Sunit", "Daymond"}
+	IEnumerable<char> chars = names.Take(2).SelectMany(s=>s.ToArray());
+
+	foreach(char ch in chars)
+		Console.WriteLine(ch);
+
+TakeWhile Operator:-
+	This yields elements from an input sequence while some condition is true. 
+The remaining elements will be skipped.
+	
+	IEnumerable<string> items = names.TakeWhile(s=>s.Length <5);
+	foreach (string item in items)
+		Console.WriteLine(item);
+
+	//prints Shiv, Bary only
+
+
+ITERATION VARIABLES:-
+
+The identifier immediately following the from keyword syntax is called the 
+iteration variable. In our examples, the iteration variable n appears in every 
+clause in the query. And yet, the variable actually enumerates over a different 
+sequence with each clause:
+
+	from    n in names           // n is our iteration variable
+	where   n.Contains ("a")     // n = directly from the array
+	orderby n.Length             // n = subsequent to being filtered
+	select  n.ToUpper(  )          // n = subsequent to being sorted
+
+
+This becomes clear when we examine the compiler's mechanical translation to 
+lambda syntax:
+
+	names.Where   (n => n.Contains ("a"))      // Privately scoped n
+		 .OrderBy (n => n.Length)              // Privately scoped n
+		 .Select  (n => n.ToUpper(  ))        // Privately scoped n
+
+
+	- Where enumerates n over the array, emitting a filtered collection.
+	- OrderBy enumerates a fresh n over the filtered collection, emitting a
+sorted collection.
+
+	- Select enumerates a fresh n over the sorted collection, emitting an
+uppercase version.
+
+Hence, the iteration variable always enumerates over the results of the
+preceding clause in the query. The only exception to this rule is when a clause
+introduces a new variable. There are three such cases:
+
+	let
+	into
+	An additional from clause
+
+
+The INTO Keyword:-
+
+The into keyword lets you 'continue' a query after projection and is a shortcut 
+way for progressively querying. 
+
+	IEnumerable<string> query = from n in names 
+								select n.Replace("a", "").Replace("e","")
+								into noAEs
+								where noAEs.Length > 2 
+								orderby noAEs 
+								select noAEs;
+
+The only place you can use into is after a select or group clause. In essence, 
+into restarts a query, allowing you to introduce fresh where, orderby and select 
+clauses.
+
+Note all query variables are out of scope following an into keyword.
+
+		var query =
+		  from n1 in names
+		  select n1.ToUpper(  )
+		  into n2                          // Only n2 is visible from here on.
+			where n1.Contains ("x")       // Illegal: n1 is not in scope.
+			select n2;
+
+To see why, consider how this maps to lambda syntax:
+
+		var query = names
+		  .Select (n1 => n1.ToUpper(  ))
+		  .Where  (n2 => n1.Contains ("x"));     // Error: n1 no longer in scope
+
+
+The original name (n1) is lost by the time the Where filter runs. Where's input 
+sequence contains only uppercase names, so it cannot filter based on n1.
+
+If you use into keyword with your join clause, you create a group join. Similar 
+to groupby clause, a group join creates a list of lists for each group.
+
+To get a left outer join, use the DefaultIfEmpty on the inner sequence which 
+produces a single, flat sequence like the inner join.
+
+		from c in Customers
+		join p in Purchases on c.ID equals p.CustomerID into custPurchases
+		from cp in custPurchases.DefaultIfEmpty()//Like SelectMany, which 		
+							//expands and flattens purchases
+		select new 
+		{
+			CustName=c.Name,
+			Price = (cp ==null) ? (decimal?) null: cp.Price
+		};
+
+
+THE LET KEYWORD:-
+	
+The let keyword introduces a new variable alongside the iteration variable.	You 
+can have any number of let statements, before or after a where statement.
+
+	With let, we can write a query extracting strings whose length excluding 
+vowels exceeds two characters as follows:
+
+	string[] names = { "Tom", "Dick", "Harry", "Mary", "Jay" };
+	IEnumerable<string> query =
+	  from n in names
+	  let vowelless = n.Replace ("a", "").Replace ("e", "").Replace ("i", 
+"").Replace ("o", "").Replace ("u", "")
+		  where vowelless.Length > 2
+		  orderby vowelless
+		  select n;       // Thanks to let, n is still in scope.
+
+
+	The Compiler resolves a let clause by projecting into a temporary anonymous 
+type that contains both the iteration variable and the new expression 
+variable.
+
+	So let accomplishes two things:
+	-	It projects new elements alongside existing elements
+	-	It allows an expression to be used repeatedly in a query without being 	
+	rewritten.
+
+
+GENERATION METHODS:-
+
+These are Empty, Repeat, and Range. In conjunction with ?? operator, Empty does 
+the reverse of DefaultIfEmpty.
+
+int[][]nos = { new int[]{1,2,5}, null, new int[]{8,9,10}};
+IEnumerable<int> flatList = nos.SelectMany(ar=>ar ?? Enumerable.Empty<int>());
+
+Without ?? the query will fail. 
+
+You can factor away the nullable type in the final result with the ?? operator. 
+The following evaluates to 1.0 if the resolution attribute doesn't exist:
+
+	double resolution = (double?) x.Attribute ("resolution") ?? 1.0;
+
+Range & Repeat only work with integers and Range expects a starting index and 
+count.
+	
+	foreach(int i in Enumerable.Range(2,8))
+		Console.Write(i + " " );
+
+
+DESIGN PATTERNS:
+
+	Extending IEnumerable<>:-
+
+	 Do implement IEnumerable<T> to enable basic LINQ support. Such basic 
+support should be sufficient for most in-memory data sets. The basic LINQ 
+support will use the default provided extension methods on IEnumerable<T>.
+
+	For example, simply defining:
+
+		public class RangeOfInts:IEnumerable<int>{
+
+			 public IEnumerator<int> GetEnumerator() {…}
+
+			 public IEnumerator GetEnumerator() {…}
+		}
+
+	Allows for the following code:
+
+		var a = new RangeOfInts();
+
+		var b = a.Where(x=>x>10);
+
+ 
+
+Although RangeOfInts did not implement a “Where” method.
+
+Samples
+--------
+	
+	A fellow emailed me earlier asking how to get the namespaces from an XML 
+document, but he was having trouble because the XML had some XML 
+declarations like <?foo?>.
+
+	A System.Xml Way:
+
+		XPathDocument has two cool methods, GetNamespace(localName) and 
+GetNamespaceInScope, but they need a currentNode to work with.
+
+		string s = @"<?mso-infoPathSolution blah=""blah""?>
+              <?mso-application progid=""InfoPath.Document"" 
+versionProgid=""InfoPath.Document.2""?>
+              <my:ICS203 xml:lang=""en-US"" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"  
+           
+xmlns:my=""http://schemas.microsoft.com/office/infopath/2003/myXSD/20
+07-04-03T19:03:38""             
+                  
+xmlns:xd=""http://schemas.microsoft.com/office/infopath/2003""
+>
+              <my:HeaderData/></my:ICS203>";
+
+		 XPathDocument x = new XPathDocument(new StringReader(s));
+		 XPathNavigator foo = x.CreateNavigator();
+		 foo.MoveToFollowing(XPathNodeType.Element);
+		 IDictionary<string, string> whatever = 
+foo.GetNamespacesInScope(XmlNamespaceScope.All);
+
+	A Linq Way:
+		First we load the XML into an XDocument and ask for the attributes 
+hanging off the root, but we just want namespace declarations.
+
+			XDocument z = XDocument.Parse(s);
+			var result = z.Root.Attributes().
+                  Where(a => a.IsNamespaceDeclaration).
+                  GroupBy(a => a.Name.Namespace == XNamespace.None ? String.Empty : 
+a.Name.LocalName, a => XNamespace.Get(a.Value)).
+
+			ToDictionary(g => g.Key, g => g.First());
+			.Take(5))
+			
+--------------------------------------------------------------------
+//Change this SQL query to Linq
+
+	Select C.sName as CustomerName,  S.sName as Salesperson,
+    Sum(O.nQty) as Qty, Sum(O.mAmount) as Amount
+	From tOrders  O
+    Inner Join tCustomer C On C.CustomerID = O.CustomerID
+    Inner Join tSalesperson S On S.SalespersonID = O.SalespersonID
+	Group By C.sName,  S.sName 
+
+	from order in Orders
+	group order by new {CName=order.CustomerName, SName=order.SalesPerson.Name}
+	int grp
+	select new
+	{
+		Customer = grp.Key.CName,
+		SalesPerson = grp.Key.SName,
+		Quantity = grp.Sum(o=>o.Quantity),
+		Amount = grp.Sum(0=>o.Amount)
+	};
+
+//Top 5 consumers whose Contact is Owner and those have placed orders > 10000
+
+var result = new XElement("BigSpenders",  
+ 		Customers.Where(c=>c.Orders.Count>0)	
+		.Where(c=>c.ContactTitle.Contains("Owner"))
+		.Select(p=> new {
+		p.CompanyName,
+		p.CustomerID,
+		p.ContactName,
+		TotalOrder = 
+p.Orders.Sum(o=>o.OrderDetails.Sum(od=>(((double?)od.UnitPrice * 
+(double?)od.Quantity) - ((double?)od.UnitPrice * (double?)od.Quantity) * 
+(double?)od.Discount)))
+		})
+		.Where(t=>t.TotalOrder>10000)
+		.OrderByDescending(o=>o.TotalOrder)
+		.Take(5)
+		.Select(e=> new XElement("Customer", new XAttribute("companyName", 
+e.CompanyName), new XAttribute("contactName", e.ContactName),
+									new XAttribute("amountSpent", 
+e.TotalOrder))));
+
+result.Dump();  	
+ 
+var topCustomers = (from c in Customers
+		 where c.ContactTitle.Contains("Owner") && c.Orders.Count > 0
+		 let TotalOrder = 
+c.Orders.Sum((o=>o.OrderDetails.Sum(od=>(((double?)od.UnitPrice * 
+(double?)od.Quantity) - 
+((double?)od.UnitPrice*(double?)od.Quantity)*(double?)od.Discount))))
+		 where TotalOrder > 10000
+		 select new 
+		 {
+		 	c.CompanyName, c.ContactName,
+			TotalOrder
+		} 
+		into topOrders				
+		orderby topOrders.TotalOrder descending
+		select topOrders).Take(5);
+
+topCustomers.Dump();
+
+-----------------------------------------------------------------------------
+Querying with namespace
+
+var xml = XElement.Load (@"c:\\test.rdl");
+
+var query =  from e in 
+xml.Elements(@"{http://schemas.microsoft.com/sqlserver/reporting/2005/01/reportd
+efinition}DataSets")  
+//where e.Attribute ("status").Value == "active"  
+select e;
+query.Dump();
+-------------------------------------------------------------------------
+
+// The second CSharp example showing usage of a custom 
+IEQualityComparer<MethodInfo> object to generate a distinct sequence of 
+MethodInfo objects based on the name of the method. 
+ 
+    /// <summary>
+    /// Enables us to find a distinct list based on the MethodInfo.Name 
+property.
+    /// </summary>
+    public class MethodInfoNameComparer : IEqualityComparer<MethodInfo>
+    {
+        public bool Equals(MethodInfo x, MethodInfo y)
+        {
+            if (x == null || y == null)
+                return false;
+            else
+                return x.Name.ToLower() == y.Name.ToLower();
+        }
+ 
+        public int GetHashCode(MethodInfo obj)
+        {
+            return obj.Name.GetHashCode();
+        }
+    }
+ 
+    MethodInfoNameComparer methodInfoComparer = new MethodInfoNameComparer();
+ 
+    // Take 1:  using Query operator methods.
+    var t1 = Assembly.GetExecutingAssembly().GetTypes()
+                     .SelectMany(t => t.GetMembers())
+                     .Where(t => t.MemberType == MemberTypes.Method && 
+((MethodInfo) t).IsPublic )
+                     .Select( t => t as MethodInfo )
+                     .Distinct(methodInfoComparer)
+                     .OrderBy(m => m.Name);
+ 
+    // Take 2:  using query expression syntax.  A little less straightforward.
+    var t2 = (from type in Assembly.GetExecutingAssembly().GetTypes()
+              from member in type.GetMembers()
+              where member.MemberType == MemberTypes.Method && ((MethodInfo) 
+member).IsPublic
+              orderby member.Name
+              select member as MethodInfo).Distinct(methodInfoComparer);
+
+
+Equality Comparison
+-------------------
+I've got the following generic class and the compiler complains that "Operator 
+'!=' cannot be applied to operands of type 'TValue' and 'TValue'" (see CS0019):
+
+public class Example<TValue>
+{
+    private TValue _value;
+    public TValue Value
+    {
+        get { return _value; }
+        set
+        {
+            if (_value != value) // <<-- ERROR
+            {
+                _value= value;
+                OnPropertyChanged("Value");
+            }
+        }
+    }
+}
+
+If I constrain TValue to class, I could use Object.Equals(). Since I need this 
+for boths structs and classes I'd be very happy if I could avoid that though. 
+
+Three options:
+
+    * Constrain TValue to implement IEquatable<TValue> and then call x.Equals(y)
+    * Take another parameter of type IEqualityComparer<TValue> and use that
+    * Use EqualityComparer<TValue>.Default to perform the comparisons
+
+You could always mix and match options 2 and 3, of course - default to the 
+default comparer, but also allow a specific one to be provided.
+
+There are three standard protocols for equality comparison:
+
+	The == and != operators
+	The virtual Equals method in object
+	The IEquatable<T> interface
+
+Occasionally, you need to force referential equality comparison. The static 
+object.ReferenceEquals method does just this:
+
+	Widget w1 = new Widget(  );
+    Widget w2 = new Widget(  );
+    Console.WriteLine (object.ReferenceEquals (w1, w2));     // False;
+
+To correctly equate x and y in the preceding example, we can use the virtual 
+Equals method. Equals is defined in System.Object, and so is available to all 
+types:
+
+	object x = 5;
+	object y = 5;
+	Console.WriteLine (x.Equals (y));      // True
+
+Equals is resolved at runtime—according to the object's actual type. In this 
+case, it calls Int32's Equals method, which applies value equality to the 
+operands, returning true.
+
+There is one case, however, in which this fails. If the first argument is null, 
+you get a NullReferenceException. 
+
+The object class provides a static helper method that does the work of AreEqual 
+in the preceding example. Its name is Equals—just like the virtual method—but 
+there's no conflict because it accepts two arguments:
+
+	public static bool Equals (object objA, object objB)
+
+Equals returns true if both objA and objB are null or if they reference the same 
+object. If only objA or objB is null, it returns false; otherwise, it calls the 
+virtual Equals method on objA. This is a fail-safe algorithm for equality 
+comparison when the types are unknown at compile time.
+
+
+
+LINQ AddIns
+===========
+
+1) Shutdown all running versions of Visual Studio 2008 
+
+2) Copy the SqlServerQueryVisualizer.dll assembly from the \bin\debug\ directory 
+in the .zip download above into your local \Program Files\Microsoft Visual 
+Studio 9.0\Common7\Packages\Debugger\Visualizers\ directory:
+
+Defining Classes to Query in LinqPad
+-------------------------------------
+Simply add a close bracket (or "}") in your current statement and then you can 
+start to add classes
+
+Remember, however, not to add the closing bracket in your last class
+
+For example:
+
+string loginId = "nobody";
+UserExample user = (
+from u in Users
+where u.LoginId.Equals(loginId) && u.Deleted == false
+select new UserExample
+	{
+		FirstName = u.FirstName,
+		LastName = u.LastName,
+		Email = e.EmailAddress,
+		Active = false,
+		Validated = false,
+	}
+).SingleOrDefault();
+
+user.Dump();
+user.Validate();
+user.Dump();
+
+} // close bracket to end the method block
+
+// create new class
+internal class UserExample
+{
+	public string FirstName {get; set;}
+	public string LastName {get; set;}
+	public string Email {get; set;}
+	public bool Active {get; set;}
+	public bool Validated {get; set;}
+
+	public void Validate()
+	{
+		Validated = true;
+	}
+// notice how no close bracket is added!
+
+-----------------------------------------------------------------------
+
+from p in persons
+
+join w in workers
+
+on new { p.FirstName, p.LastName } equals new { w.FirstName, w.LastName }
+
+select ...;
+
+It's essentially a cross-join with a where 
+clause that results in the same thing as creating an inner join on two 
+conditions:
+ 
+
+var q = from p in db.Persons
+    from w in db.Workers
+    where p.FirstName == w.FirstName || p.LastName == w.LastName
+
+    select new
+
+    {
+        Person = p,
+        Worker = w
+    };
+
+
+If the join columns on your schema don't have the same name don't forget to name 
+the properties of the anonymous type, so you can have a mathc the left side with 
+the right
+
+from t1 in table1
+join t2 in table2 on new { KEY1 = t1.TB1Key1, KEY2 = t1.TB1Key2 }
+ equals new { KEY1 = t2.TB2Key1, KEY2 = t2.TB2Key2 }
+
+select new { t1 , t2}
+
+
+You'd have to define, in addition to your method call two additional classes:
+
+1) A key class that exposes properties required to build the join condition
+2) An IEqualityComparer<T> implementation for said key class
+
+
+Essentially, the Equals method you're implementing for the IEqualityComparer 
+generic interface resolves the join condition, and you would make the entire 
+method call as follows:
+
+var results = db.Persons.Join(
+    db.Workers,
+    person => new MyKey { FirstName = person.FirstName, LastName = 
+person.LastName },
+    worker => new MyKey { FirstName = worker.FirstName, LastName = 
+worker.LastName },
+    (person, worker) => new { Person = person, Worker = worker),
+    new MyKeyEqualityComparer());
+
+-----------------------------------------------------------
+Back in July, I was doing a code review with a team member for a new feature. 
+One of the methods we were reviewing looked like this (Some names have been 
+changed to protect the codebase)
+        private string GetTag(string originalTag, Gadget gadget)
+        {       
+            if (gadget.Details.Modules != null)
+            {
+                foreach (Widget widget in gadget.Details.Widgets)
+                {
+                    if (widget != null && widget.Options != null)
+                    {
+                        foreach (Option option in widget.Options)
+                        {
+                            if (option != null && option.Skus != null)
+                            {
+                                foreach (Sku sku in option.Skus)
+                                {
+                                    if (sku != null && sku.Id == IdToMatch)
+                                    {
+                                        return originalTag + gadget.Id;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return originalTag;
+        }
+My thought at the time was, "That's a lot of looping for that one test on 
+sku.Id." My second thought was, “I know I‘ve seen that foreach nesting a dozen 
+times in our code." I started thinking about how else we could express the 
+intent of something like the above code. (Seriously – the app does this kind of 
+iterating a lot). What I really wanted was a way to capture and re-use the 
+looping logic, and separate that out from the action being taken during 
+iteration. My first thought was to just write a method that did all the looping 
+and took an Action delegate as an argument, as the action to be done through the 
+innermost loop. But that seemed clumsy, and I wasn’t satisfied with it.
+I hadn’t put much thought into it until I was reading chapters 5 and 6 in Jon 
+Skeet’s C# in Depth last night, and reviewed a little about C# 2.0-style 
+iterators. I started thinking that maybe the way to break this out was to 
+introduce some custom iterators. And then I remembered the C# 3.0 linq 
+expressions are basically tersely-written iterator produces, and I knew I was on 
+to something. Here's what I did:
+
+Start Small:-
+The first thing I notice when looking at the above loop is that there’s a 
+pattern to the collection access:
+1)      Check if the collection itself is null and don’t iterate if it is.
+2)      When looping through the collection, skip over null entries.
+Let's start with the first one:
+    public static class EnumerableExtensions
+    {
+        public static IEnumerable<T> OrEmpty<T>(this IEnumerable<T> collection)
+        {
+            return collection ?? Enumerable.Empty<T>();
+        }
+    }
+This is an extension method for all IEnumerable<T> instances. If the instance is 
+non-null, it just returns it. But if the instance is null, it returns 
+Enumerable.Empty, which represents an empty collection of type T. Usage of this 
+extension method would look like this:
+   IEnumerable<int> collection = null;
+   foreach(var c in collection.OrEmpty())
+   {
+       //Code goes here. Doesn’t run when collection is empty.
+   }
+Note that we can call the extension method on collection even when it’s null – 
+that’s because it’s really being passed in as an argument to a static method, so 
+there’s no NullReferenceException possible here.
+Now that we can safely handle a null collection, how can we skip past the null 
+entries that could be lurking inside a collection? Let’s add another extension 
+method:
+    public static IEnumerable<T> SkipNulls<T>(this IEnumerable<T> collection) 
+where T : class
+    {
+        return collection.Where(c => c != null);
+    }
+The Where method returns an IEnumerable<T> that will bypass all the null entries 
+in the collection. That means we can write code like this now:
+    var strings = new[] { "a", "b", null, "c", null, "d", null, null, "e" };
+    foreach (var s in strings.SkipNulls())
+    {
+        Console.Write(s.ToUpper());
+    }
+This produces the string “ABCDE” to the console. Note that we don’t have to test 
+the variable “s” for nullity before calling ToUpper on it, as the SkipNulls 
+method is ensuring that we don’t iterate over the null entries in the 
+collection.
+In our original code, those two checks were almost always grouped together. So 
+let’s create a third extension method:
+    public static IEnumerable<T> NullSafe<T>(this IEnumerable<T> collection) 
+where T : class
+    {
+        return collection.OrEmpty().SkipNulls();
+    }
+Which just chains the results of the two methods together. 
+Apply It
+With these three methods in place, our original code (remember our original 
+code?) looks a little different:
+        public static string GetTag (Gadget gadget, string originalTag)
+        {
+            foreach (var widget in gadget.Details.Widgets.NullSafe())
+            {
+                foreach (var option in widget.Options.NullSafe())
+                {
+                    foreach (var sku in option.Skus.NullSafe())
+                    {
+                        if (sku.Id == IdToMatch)
+                        {
+                            return originalTag + gadget.Id;
+                        }
+                    }
+                }
+            }
+            return originalTag;
+        }
+Now we can kind of start to see the intent of the method come out. This is good, 
+but it can get better. Let’s turn that search for a matching sku id into a linq 
+expression:
+        public static string GetTag (Gadget gadget, string originalTag)
+        {
+            var hasSpecialSku = (from m in gadget.Details.Widgets.NullSafe()
+                                 from o in m.Options.NullSafe()
+                                 from s in o.Skus.NullSafe()
+                                 select s).Any(s => s.Id == IdToMatch);
+            return hasSpecialSku ? originalTag + gadget.Id : originalTag;
+        }
+Wow. That’s a much shorter and more succinct method than we started with! This 
+LINQ expression is selecting all the skus from all the options from all the 
+widgets. The Any method returns true if it finds a sku that matches the 
+predicate we provide (in this case, a test for whether the Id matches a given 
+constant.)
+Going All In:-
+Ok, this is already pretty good. But here’s the thing – this method isn’t the 
+only place where I want to iterate over widgets, or down into options, or skus. 
+There are a lot of places where I want to do this kind of thing. Let’s add some 
+more extension methods, only this time, let’s add some extensions to the Gadget 
+class:
+        public static IEnumerable<Widget> AllWidgets(this Gadget gadget)
+        {
+            return gadget.Details == null
+                       ? Enumerable.Empty<Widget>()
+                       : gadget.Details.Widgets.NullSafe(); 
+        }
+        public static IEnumerable<Option> AllOptions(this Gadget gadget)
+        {
+            return gadget.AllWidgets().SelectMany(w => Options.NullSafe());
+        }
+        public static IEnumerable<Sku> AllSkus(this Gadget gadget)
+        {
+            return gadget.AllOptions().SelectMany(o => o.Skus.NullSafe());
+        }
+These build on each other as we work our way down the nesting. Note that 
+AllWidgets has an extra test to make sure the Details property isn’t null. We 
+can’t use our NullSafe extension here, as Details doesn’t return a collection. 
+So, we look at the field, and if it’s null, we return Empty<Widget>.
+Now what does this do to our original method?
+   public static string GetTag(Gadget gadget, string originalTag)
+       {
+            var exists = gadget.AllSkus().Any(s => s.Id == IdToMatch);
+            return exists ? originalTag + gadget.Id : originalTag;
+       } 
+I’m betting that this isn’t the only place where we’ll need to know if a sku Id 
+matches, and I’m betting this isn’t the only place we want to know if a Gadget 
+contains that sku. You guessed it, more extension methods:
+        public static bool IsSpecial(this Sku s)
+        {
+            return s.Id == IdToMatch;
+        } 
+ 
+        private static bool HasSpecialSku(this Gadget gadget)
+        {
+            return gadget.AllSkus().Any(IsSpecial);
+        }
+Which makes our original method:
+        public static string GetTag(Gadget gadget, string originalTag)
+        {
+            return gadget.HasSpecialSku()
+                ? originalTag + gadget.Id
+                : originalTag;
+        }
+Dividends on our Investment:-
+Wow. We got that original beast, with 7 nested levels of conditional code, down 
+to one statement. In the process, we introduced a whole new set of powerful 
+abstractions that we can use throughout our entire code base to do similar kinds 
+of simplifications, and a base we can build on as we identify and capture more 
+of those similar abstractions. Even with just what we've done so far, we can now 
+do things like:
+        //All Discounted
+        gadget.AllWidgets().Where(m => m.WidgetType == WidgetType.Discount);
+        //Number of options priced above 50 dollars.
+        gadget.AllOptions().Where(o => o.OriginalPrice > 50.00).Count();
+        //The first sku of the first option of the first widget.
+        gadget.AllSkus().First();
+The code we factored out definitely ends up being longer than the original 
+nested for-loops, but each method does one thing, is reusable across the system, 
+and can be easily understood and tested in isolation. And, as you can see from 
+the three examples above, we've made that cost back and then some as soon as we 
+re-use any of the new code.
+
+================================================================================
+
+Select S.OID SheetOD, n.itemname SheetName, x.oiddestination SnapinOID,
+dbo.REPORTGetHierarchyPathByChildOid(x.oiddestination, 'DrawingFolderHierarchy') 
+snapinFullPath
+FROM jddwgsheet2 s
+join jnameditem n on n.oid = s.oid
+join xsnapinhassheets x on x.oidorigin = s.oid
+
+Translates to Linq Query....
+
+var q = from s in JDDwgSheet
+		join n in JNamedItem on s.Oid equals n.Oid
+		join x in XSnapInHasSheets on s.Oid equals x.OidOrigin 
+		select new 
+		{
+			SheetOID=s.Oid, SheetName=n.ItemName, SnapinOID=x.OidDestination,
+			SnapInPath= REPORTGetHierarchyPathByChildOid(x.OidDestination, 
+"DrawingFolderHierarchy")
+		};
+
+Use the AssemblyResolve event
+-----------------------------
+
+The AssemblyResolve event fires whenever the common language runtime tries to 
+bind to an assembly and fails. You can use the AddHandler method to add an event 
+handler to the application that returns the correct assembly whenever the 
+AssemblyResolve event fires. 
+
+The AssemblyResolve event handler must return an [Assembly] object, and the 
+common language runtime must bind to this object. Typically, you can use the 
+Assembly.LoadFrom method to load the assembly and then to return the object.
+
+AppDomain currentDomain = AppDomain.CurrentDomain;
+currentDomain.AssemblyResolve += new ResolveEventHandler(MyResolveEventHandler);
+
+private Assembly MyResolveEventHandler(object sender,ResolveEventArgs args)
+{
+	//This handler is called only when the common language runtime tries to bind 
+to the assembly and fails.
+
+	//Retrieve the list of referenced assemblies in an array of AssemblyName.
+	Assembly MyAssembly,objExecutingAssemblies;
+	string strTempAssmbPath="";
+
+	objExecutingAssemblies=Assembly.GetExecutingAssembly();
+	AssemblyName [] 
+arrReferencedAssmbNames=objExecutingAssemblies.GetReferencedAssemblies();
+			
+	//Loop through the array of referenced assembly names.
+	foreach(AssemblyName strAssmbName in arrReferencedAssmbNames)
+	{
+		//Check for the assembly names that have raised the "AssemblyResolve" 
+event.
+		if(strAssmbName.FullName.Substring(0, 
+strAssmbName.FullName.IndexOf(","))==args.Name.Substring(0, 
+args.Name.IndexOf(",")))
+		{
+			//Build the path of the assembly from where it has to be loaded.	
+			
+strTempAssmbPath="C:\\Myassemblies\\"+args.Name.Substring(0,args.Nam
+e.IndexOf(","))+".dll";
+			break;
+		}
+
+	}
+	//Load the assembly from the specified path. 					
+	MyAssembly = Assembly.LoadFrom(strTempAssmbPath);					
+
+	//Return the loaded assembly.
+	return MyAssembly;			
+}
+
+  from name in assemblyNames
+  select Assembly.LoadWithPartialName(name) into a
+  from c in a.GetTypes()
+  where c.IsPublic &&
+     c.GetConstructors().Any(m => m.IsPublic) &&
+     GetInterfaceTypes(c).Contains(typeof(ICollection<>))
+  select c.FullName;
+
+
+var instances = from t in Assembly.GetExecutingAssembly().GetTypes()
+                where t.GetInterfaces().Contains(typeof(ISomething))
+                         && t.GetConstructor(Type.EmptyTypes) != null
+                select Activator.CreateInstance(t) as ISomething;
+
+foreach (var instance in instances)
+{
+    instance.Foo(); // where Foo is a method of ISomething
+}
+
+
+Linq To SQL
+-----------
+
+To Insert Record:
+	//First create a record userAccount
+	
+	ctx.InsertOnSubmit(userAccount);//Singal ctx to insert this record
+	ctx.SubmitChanges();						//Save to database
+
+To Update a record (Web apps):
+
+	For web apps, you need to use the Attach method. Also your table should have a 
+	TimeStamp coln. The Attach methods allows you to attach an object that was not 
+	orginally created from the data context.
+
+	//Create a new user
+	//Save the fields that you dont want to change
+	ViewState["userID"] = user.Id;
+	ViewState["userVersion"] = user.Version;
+
+	//On Update get back the values
+	user.Id = (int)ViewState["userID"];
+	user.Version= (Binary)ViewState["userVersion"];
+
+	ctx.Users.Attach(user, true);	//true to indicate that this object should be
+																//treated as a changed object & call it's Update 
+																//method
+	ctx.SubmitChanges();
+
+
+Deleting a Record:
+
+	Same as above:
+	//create the user;
+	User user = new User;
+
+	//set the saved values
+	user.Id = (int)ViewState["userID"];
+	user.Version = (Binary)ViewState["userVersion"];
+
+	ctx.Users.Attach(user);
+	ctx.Users.DeleteOnSubmit(user);
+	ctx.SubmitChanges();

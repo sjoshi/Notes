@@ -1,0 +1,11 @@
+Portable Drives
+===============
+
+
+I would just like to mention the connector (and cable) on the drive is not really proprietary.
+
+It uses a Micro-B USB 3.0 Compatible connector. You can actually take a 
+USB Micro-B Male to USB A Male cable and plug this into your computer 
+in USB 2.0 mode. I personally used the cable for my smartphone and it worked just fine.
+
+Edit: I just uploaded an image of this to the gallery. 

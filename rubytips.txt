@@ -1,0 +1,504 @@
+
+Useful LInks:
+
+  http://railskits.com/available-kits/
+  http://www.rapid-ideas.com/products/themes/index.html
+  http://www.process-one.net/docs/ejabberd/guide_en.html
+
+Rapid Web Dev Tools:
+    
+  Alpha Five
+  
+  with Alpha Five. V10 is a significant step up, w/AJAX and "Action" JavaScript (like Servoy's js writing tool). I select some Action Javascript from a list things I want to do, and Alpha writes the fifteen lines of js code. I'd have to crack open a book to figure out exactly what those fifteen lines are doing, but key is, I don't have to and it still works. Take Events -- I count 20 client-side events for the grid component on submit, 10 server-side events, 14 client-side field events plus client or server-side calculation expressions and field validation, 10 client-side row events, 70 client-side grid 'system' events, plus watch events. Server-side events use Alpha's Xbasic, client-side events are written in javascript or written for you using Action JavaScript. Add the Genie's that write javascript for things like js tree control, js accordion controls, js tabs, pre-configured modules for Google Maps, AJAX callbacks, ability to manipulate css, AJAX auto-suggest and AJAX Combo-Box lookups...I mean the biggest problem is holding back the clients when they find out what I can do. With all this new stuff it is easy to overlook what's been there for a long time - like integrated Security Framework and ability to target any back end database (like others have mentioned here.)
+ 
+
+Hosting Guides:
+
+  http://allaboutruby.wordpress.com/2009/12/05/hosting-your-rails-app-first-look-at-heroku/
+  
+Templates:
+
+http://www.4templates.com/view/search=%3D%3DAecuEtyUrquYgEKVSJVWQqKZdxWZoVKZIIaztSpiLNJIi6HE_5mYJJnRmpASWDsSJoKKnErM-SLpYIKyMgGUGpmbqA5mIQTq6MtyAIGp5KZdt1CAQM7HiD/4/AX0548GR
+
+
+gem install --http-proxy http://129.135.251.220:80 gemname
+
+1. gem install rdoc-data
+
+//This did not work 
+  rdoc-data --install
+To have ri data for you gems you’ll also need to run:
+
+2.  gem rdoc --all --overwrite
+
+
+Current Variables:-
+
+  You can iterate over ObjectSpace, as has been mentioned already. But here are a few other methods.
+
+  local_variables
+  instance_variables
+  global_variables
+
+
+  The last 2 of the 5 mentioned at the beginning must be evaluated at the module level (a class is a descendant of a module, so that works).
+
+    Object.class_variables #=> []
+    Object.constants #=> ["IO", "Duration", "UNIXserver", "Binding", ...]
+
+  Here's are a few more tricks to explore in different directions
+
+    "".class            #=> String
+    "".class.ancestors  #=> [String, Enumerable, Comparable, ...]
+    String.ancestors    #=> [String, Enumerable, Comparable, ...]
+
+
+Use require_relative for files in the same folder
+
+Symnbols:
+  Name should start with : as in :north and :south.
+  Dictionaries can be created with symbol:value syntax as in:
+    
+    inst_section = {cell: 'string', clarinet: 'woodwind', drum : 'percussion'}
+    puts "A clarinet is a #{inst_section[:clarinet]}"
+   
+ 
+ Most statements in ruby return a value. So you can use:
+  
+    while line = gets
+      puts line.downcase
+    end
+
+The value of the last expression evaluated in the block is passed back to the method as the value of the yield. 
+For e.g. 
+  
+  return value if yield(value)
+
+Where the value is checked like:
+  
+  v *v > 30
+    
+ to_s & to_str:
+  
+  Use to_s to print an object as in printf("%s\n", obj)
+  Use to_str to make the object behave as string
+  
+  
+Enumerator:
+ 
+  Strings have a method, each_char, that gives an enumerator object. Alternatively you can use enum_for on an object and pass in the method of the object that gives an enumerator.
+  
+  name = "Sunit"
+  enum_default = name.each_char()
+  enum = name.enum_for(:each_char)
+  
+
+Shortcircuit operators:
+
+  
+  10 && 20 - Will return the 2nd operator or 20 in this case as long as first is not false or nil
+  10 || 20 - Will return the first operator if this is true otherwise the 2nd operator
+  
+    x ||= y - Will assign y to x if x is false or nil. 
+  
+    n = (ARGV[0] || 10).to_i   - Will assign first arg if different than nil or 10 if nil
+    
+
+Arrays:
+
+    first, *rest = [*1..10]
+    #first => 1
+    #rest => [2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+
+Lamdas:
+
+Block can use local variables from the surrounding scope. 
+
+  defn_times(thing)
+    lambda {|n| thing * n}
+  end
+
+  p1 = n_times(23)
+  p1.call(3) #=> 69
+  p1.call(4) #=> 92
+  p2 = n_times("Hello")
+  p2.call(3) #=> "HelloHelloHello"
+  
+The method n_times returns a Proc object that references the method’s parameter, thing. Even though that parameter is out of scope by the time the block is called, the parameter remains accessible to the block.This is called a closure—variables in the surrounding scope that are referenced in a block remaina ccessible for the life of that block and the life of any Proc object created from that block.
+  
+  
+Blocks:
+
+Ruby blocks can be objects. If the last parameter in a method is prefixed with an & (say &action), Ruby looks for code block whenever that method is called. The code block is converted to an object of Class Proc and assigned to the parameter.
+
+
+class ProcUsage
+  
+  def pass_in_block (&action)
+    @stored_proc=action
+  end
+
+  def use_proc(parameter)
+    @stored_proc.call(parameter)
+  end
+
+end
+
+eg = ProcUsage.new
+
+eg.pass_in_block {|param| puts "The parameter is #{param}"}
+ 
+eg.use_proc(99)
+
+This produces -> The parameter is 99
+
+
+Ruby provides two methods that convert a block to an object. Both lambda and Proc.new take a block and return an object of class Proc.
+
+  def my_if(cond, then_block, else_block)    
+    if cond
+      then_block.call
+    else
+      else_block.call
+    end
+  end
+
+Calling the above function:
+
+  5.times do |val|
+    my_if val < 3,
+      -> {puts "#{val} is small"},
+      -> {puts "#{val} is big"}
+  end
+  
+  
+Blocks can take parameters too, as in:
+
+  proc2 = lambda do |a, *b, &block|
+      puts "a = #{a.inspect}"
+      puts "b = #{b.inspect}"
+      block.call
+    end
+    
+Calling the above function:
+  
+  proc2.call(1,2,3) {puts "In block"}
+  
+or
+    proc2 = -> a, *b, &block do
+        puts "a = #{a.inspect}"
+        block.call
+      do
+  
+  
+Modules:
+  
+  require 'trig'
+  require 'moral'
+  
+  y = Trig.sin(Trig::PI/4)
+  wrongdoing = Moral.sin(Moral::VERY_BAD)
+
+As with class methods, you call a module method by preceding its name with the module’s
+name and a period, and you reference a constant using the module name and two colons.
+
+
+Ranges:
+  Exclusive range donot include the high part, as in:
+  
+    >> [*0...3]
+    => [0, 1, 2]
+
+  Inclusive range, using .., do include the high-part:
+  
+    >> [*0..3]
+    => [0, 1, 2, 3]
+
+
+  When using case statement, use Exclusive ranges as in:
+  
+    car_age = 5.2
+    
+    case car_age
+    when 0...1
+      puts "New car"
+    when 1...3
+      puts "Nice"
+    when 3...6
+      puts "Reliable"
+    when 6...10
+      puts "Can be a struggle"
+    else
+      puts "Vintage"
+    end 
+    
+Gives => "Reliable"
+
+
+Regular Expressions:
+  
+  You can match string against patterns using the =~ expression. The following code prints lines in test.txt that contain the word "on"
+    
+    File.foreach("test.txt").with_index do |line, index|
+      puts "#{index}: #{line}" if line =~ /on/
+    end
+
+  You can use split to create an array using a delimiter
+  
+    length = "2:58"
+    mins, secs = length.split(/:/)
+    
+  You can use scan to break a string into chunks based on a pattern
+  
+    mins, secs = length.scan(/\d+/)
+    
+    >> str
+    => "The moon is made of cheese"
+    >> str.scan(/\b\w/)
+    => ["T", "m", "i", "m", "o", "c"]
+    
+        
+  To replace string, use sub or gsub
+  
+    str ="Dog and cat"
+    new_str = str.sub(/cat/, "horse")
+
+  To replace the original string, use sub! or gsub!
+  
+  To create regular expression objects use;
+    pat = Regexp.new("mm/dd") #Same as /mm\/dd/
+    
+  The %r syntax is particularly useful when creating patterns that contain forward slashes:
+    
+    pat = %r{mm/dd}
+
+    >> date = "11/10/2010"
+    => "11/10/2010"
+    >> date =~ %r{(\d+)[/:](\d+)[/:](\d+)}
+    => 0
+    >> [$1,$2,$3]
+    => ["11", "10", "2010"]
+    
+
+  After the match, you can use the MatchData object to retrieve additional information:
+  
+    match = /cat/.match(entry)
+    if match
+      "#{match.pre_match} -> #{match[0]} <- #{match.post_match}"
+
+      >> str = "The cat in the hat"
+      >> match  = /cat/.match(str)
+      => #<MatchData "cat">
+      >> "#{match.pre_match} -> #{match[0]} <- #{match.post_match}"
+      => "The  -> cat <-  in the hat"
+
+  You can use Groups too:
+  
+    >> /(?<hr>\d\d):(?<min>\d\d)(..)/ =~ "12:50am"
+    => 0
+    >> "Hour is #{hr}, minutes #{min}"
+    => "Hour is 12, minutes 50"
+  
+    >> /(\d\d):(\d\d)(.*)/ =~ "12:50am"
+    => 0
+    >> $3
+    => "am"
+    >> $2
+    => "50"
+  
+  Anchors:
+  
+    The sequence \A matches the begining of a string, and \z & \Z match the end of a string. (Actually \Z matches the end of a string unless the string ends with a \n, in which case it matches just before the \n.)
+    
+  You can use Substitution with blocks too:
+  
+    >> name = %q!quick bown fox!
+    => "quick bown fox"
+    >> name.sub(/^./) {|m| m.upcase}
+    => "Quick bown fox"
+    >> name.gsub(/\b\w/) {|m| m.upcase}
+    => "Quick Bown Fox"
+
+  You can create the intersection of character classes using &&. So to match all lowercase ASCII letters that are not vowels, you can do:
+  
+    str = "now is the time"
+    str.gsub(/[a-z]&&[^aeiou]/, '*')
+    
+    => "*o* i* **e *i*e"
+    
+  You can use Backslash Sequences in substitution:
+  
+    >>> "necryption".gsub(/^(.)(.)/, '\2\1')
+    => "encryption"
+
+  Lookahead & Lookbehind:
+   
+  The zero-width positive lookahead extension, (?=re) matches re at this point but does not consume it
+    
+    str = "red, white, and blue"
+    str.scan(/[a-z]+(?=,)/) # match evey word followed by a comma but don't include the comma
+    
+  The zero-width positive lookbehind (?<=re) lets you look for characters that precede the context of a match without affecting $&.
+  The following matches letters dog only if they are preceded by the letter hot:
+    
+    "seadog hotdog" =~ /(?<=hot)dog/
+  
+  You can use substitution strings: \& (last match), \+ (last matched group), \` (string prior to match), \' (string after match) and \\ (a literal backslash)
+  
+  To control back-tracking, use ++
+  
+    >>str = "XXXO XXXY"
+    >>re = /(X++)(?!O)/ #X cannot be back-tracked and should NOT be followed by an O
+    
+    $1 = "XXX"
+
+  To re-execute match pattern, use the \g<grou_name> syntax
+    
+    >> re = %r{(?<color>red|green|blue) \w+ \g<color> \w+}
+    >> str = 'red sun blue moon'    
+    >> str =~ re
+    => 0
+  
+  If instead you use the \k<group_name> pattern, it only matches whatever was matched earlier. So in this case, \k<color> would have the value 'red' which is not there in the rest of the match, as in:
+  
+  >> re = %r{(?<color>red|green|blue) \w+ \k<color> \w+}
+  >> str = 'red sun blue moon'
+  >> str =~ re
+  => nil
+  
+  
+  
+Method Arguments:-
+
+  You can specify argument array by splatting an arguments, as in:
+  
+    def some_method(a, *rest)
+      "arg1=#{a}, rest=#{rest.inspect}"
+    end
+    
+  So if you call some_method('one', 'two', 'three') => "arg1=one, rest=[two, three]"
+  
+  For classes, if you called just super, it means "invoke this method in superclass, passing it all the parameters that were given in the original method"
+  
+    class Child < Parent
+      def some_method(*)
+        super   # Here super is called with all the parameters
+      end
+    end
+  
+  If you put an amsersand as a prefix for the last parameter, then any associated block is converted to a Proc object, that can be stored and used later.
+  
+    class TaxCalc
+      def initialize(name, &block)
+        @name, @block = name, block
+      end
+      
+      def get_tax(amount)
+        "#{name} on #{amount} = #{@block.call(amount)}"
+      end
+    end
+    
+    tc = TaxCalc.new("Sales Tax") {|amt| amt * 0.75}
+    
+    tc.get_tax(100) => "Sales tax on 100 = 7.5"
+  
+  
+Command Expansion:
+    
+  If you enclose a string in backquotes or backticks, or use %x, it will be executed as a command by the underlying OS. The value of the expression is the standard output of the command. Newlines will not be stripped, so likely the value will have a trailing return or linefeed character.
+  
+    `date`  => "Mon Apr 13 13:25:58 CDT 2010\n"
+    %x{echo 'Hello there'}  #=> "Hello there\n"
+
+  The exit status is available in the global variable, $?, so to get some info on the exit process:
+  
+    >> $?.pid
+    => 5512
+    >> $?.exitstatus
+    => 0
+      
+  
+Comparison Operators:
+    
+  eql?  - True if the receiver and argument have the same type and equal values. 1.eql?(1.0) is false
+  equal? - True if the receiver and argument have same object ID
+  =~  - Regular expression match
+  === - Use to compare each of the items with the target in the "when' clause of a "case" statement
+    
+  
+  For e.g the case statements operate by comparing the target (the exp after the case) with each of the comparison expressions after the when keyword. This is done using comparison === target. 
+  As long as a class has meaningful semantics for ===, objects of that class can be used in case expressions.
+  
+  For e.g. regular expressions define === as a simple patter match
+  
+    case line
+      when /titel=(.*)/
+        puts "Title is #$1"
+      when /track=(.*)/
+        puts "Track is #$1"
+      else
+        puts "Unknown entry"
+      end 
+  
+    In Ruby classes are instances of class Class. The === operator is defined in Class to test whether the argument is an instance of the receiver or one of it's superclass.
+    
+    case shape
+      when Square, Rectangle
+        #....
+      when Circle
+        #...
+      else
+        #....
+      end
+      
+      
+  You can use Ruby range as a boolean expression. A range such as exp1..exp2 will evaluate as false until exp1 becomes true. The range will then evaluate as true until exp2 becomes true. Once this happens the range resets, ready to fire again.
+  
+   For e.g. to print the 3rd->5th lines in a file, you can do:
+   
+    file = File.open("lines.txt")
+    while line = file.gets
+      puts(line) if line =~ /third/ .. line =~ /fifth/
+    end
+  
+    => third
+    => fourth
+    => fifth
+  
+    for i in File.open("ordinal").find_all {|line| line =~ /\d$/}
+      print i.chomp(), " "
+    end
+    
+    => second
+    => third
+
+  As long as your class defines a sensible "each" method, you can use a for loop to traverse it's objects:
+  
+    class Periods
+      def each
+        yield "Classical"
+        yield "Jazz"
+        yield "Rock"
+      end
+    end
+    
+  You can use next to skip a loop (like continue), break to terminate and redo to repeat the current iteration of the loop from start but without reevaluating the condition or feetchin the next element.
+  
+    while line = gets
+      next if line =~ /^\s*#/   #skip comments
+      break if line =~ /^END/   #stop at end
+      redo if line.gsub!(/`(.*)`/) {eval($1)} #substitue stuff in backticks and try again
+    end
+    
+    >> line = "`1 + 4`"
+    => "`1 + 4`"
+    >> line.gsub!(/^`(.*)`/){eval($1)}
+    => "5"
+    >> line
+    => "5"
+  
+  
+  
+
+

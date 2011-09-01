@@ -1,0 +1,734 @@
+AS400
+-----
+
+http://www.midrangejumpstart.com/
+
+Starter Kit for the IBM iSeries and AS/400 [Paperback]
+Wayne Madden (Author), Gary Guthrie  
+Gary Guthrie (Author) 
+Paperback: 578 pages 
+Publisher: 29th Street Press (April 15, 2001) 
+Language: English 
+ISBN-10: 1583040846 
+
+The Modern RPG IV Language [Paperback]
+Robert Cozzi
+Paperback: 650 pages 
+Publisher: Mc Press; 4th edition (September 1, 2006) 
+Language: English 
+ISBN-10: 1583470646 
+ISBN-13: 978-1583470640 
+
+Free-Format RPG IV: How to Bring Your RPG Programs Into the 21st
+Century 
+Jim Martin Paperback: 216 pages Publisher: Mc Press;
+illustrated edition edition (August 1, 2005) Language: English
+ISBN-10: 1583470557 
+
+ATTN.:  Andrea Blocker.
+Reference Sprint Item B-27882.
+
+Start:
+http://www.microsoft.com/learning/en/us/certification/cert-vstudio.aspxw
+
+Each MCTS certification on Visual Studio 2008 requires that you pass
+Exam 70-536: TS: Microsoft .NET Framework, Application Development Foundation
+Schedule:
+http://www.microsoft.com/learning/en/us/exam.aspx?ID=70-536&locale=en-us#tab2
+
+PIA: http://support.microsoft.com/kb/304295
+
+AddIn Contract: http://msdn.microsoft.com/en-us/magazine/cc163476.aspx
+
+Loopback Address: 10.50.50.1, 255.255.255.0 for the subnet mask
+
+Right click on it and select Properties. 
+From the Properties dialog under the General tab select Internet
+Protocol (TCP/IP) and click Properties.
+
+Change the General settings to "Use the following IP address" from
+"Obtain an IP address dynamically"
+
+Enter a fixed number using 10.* or 192.*. I generally use 10.* for my
+virtual networks so they don't collide with my desktop and automatic
+ones. 10.50.50.1 is a good choice. Make note of this number for later.
+
+Enter 255.255.255.0 for the subnet mask
+Leave the gateway blank (as this machine is the gateway)
+
+I use 127.0.0.1 for the Preferred DNS server listed on this
+dialog. This means the server doesn't try to go out to the network to
+resolve any names which is good for development.
+
+Click OK to close the dialog.
+
+
+Services
+--------
+
+http://en.csharp-online.net/Creating_a_.NET_Windows_Service%E2%80%94Alternative_1%3A_Use_a_Separate_Thread
+
+SP3DPIA.IMSICDPInterfacesTlb, Version=1.1.0.0, Culture=neutral,
+PublicKeyToken=1495b921d589236c
+
+
+Performance Counters
+--------------------
+
+To retrieve the value of a performance counter, instantiate a
+PerformanceCounter object and then call the NextValue or NextSample
+method. NextValue returns a simple float value; NextSample returns a
+CounterSample object that exposes a more advanced set of properties,
+such as CounterFrequency, TimeStamp, BaseValue, and RawValue.
+
+PerformanceCounter's constructor takes a category name, counter name,
+and op-tional instance. So, to display the current processor
+utilization for all CPUs, you would do the following:
+
+using (PerformanceCounter pc = new PerformanceCounter ("Processor",
+                                                       "% Processor Time",
+                                                       "_Total"))
+  Console.WriteLine (pc.NextValue());
+
+Or to display the "real" (i.e., private) memory consumption of the
+current process: string procName =
+Process.GetCurrentProcess().ProcessName;
+
+using (PerformanceCounter pc = new PerformanceCounter ("Process",
+                                                       "Private Bytes",
+                                                       procName))
+  Console.WriteLine (pc.NextValue());
+
+
+Notes
+------
+StringComparer.Ordinal mirrors the default behavior for string equality
+comparison and StringComparer.CurrentCulture for order comparison.
+
+
+To load an assembly from a fully qualified name (without a location)
+call Assembly.Load. This instructs the CLR to find the assembly using
+its normal automatic resolution system. The CLR itself uses Load to
+find referenced assemblies.
+
+To load an assembly from a filename, call LoadFrom or LoadFile.
+To load an assembly from a URI, call LoadFrom.
+To load an assembly from a byte array, call Load.
+
+This does make it very easy, though, for someone to add rogue
+assemblies, maybe even accidentally!  Assuming no compile-time
+references, the CLR has nothing against which to check an assembly's
+identity. If everything that you load is signed with a known public
+key, the solution is to check that key explicitly. In the following
+example, we assume that all libraries are signed with the same key
+pair as the executing assembly:
+
+byte[] ourPK = Assembly.GetExecutingAssembly().GetName().GetPublicKey();
+foreach (string assFile in Directory.GetFiles (dir, "*Server.dll"))
+{
+  byte[] targetPK = AssemblyName.GetAssemblyName (assFile).GetPublicKey();
+  if (Enumerable.SequenceEqual (ourPK, targetPK))
+  {
+    Assembly a = Assembly.LoadFrom (assFile);
+    
+Notice how  AssemblyName  allows  you  to  check  the public key
+before  loading  the assembly. To compare the byte arrays, we used 
+LINQ's  SequenceEqual method 
+
+Nested types show their FullName with a + as in:
+
+typeEnv.GetNestedTypes() 
+  |> Array.iter (fun t -> printfn "Namespace: %s,
+                Name: %s, FullName: %s" t.Namespace t.Name t.FullName);;
+
+Namespace: System, Name: SpecialFolderOption, 
+FullName: System.Environment+SpecialFolderOption
+
+Namespace: System, Name: SpecialFolder,
+FullName: System.Environment+SpecialFolder
+
+Also, the IsPublic is False while IsNestedPublic is True.
+
+IsInstanceOfType - Accepts a type and instance
+IsAssignableFrom - Accepts two types
+
+Here is an example of the first:
+
+object obj  = Guid.NewGuid();
+Type target = typeof (IFormattable);	//the Interface to check on
+bool isTrue   = obj is IFormattable;              // Static C# operator
+bool alsoTrue = target.IsInstanceOfType (obj);   // Dynamic equivalent
+
+IsAssignableFrom is more versatile:
+Type target = typeof (IComparable), source = typeof (string);
+Console.WriteLine (target.IsAssignableFrom (source));     
+ 
+At runtime, all generic types are either unbound or closed.  They're
+unbound in the (relatively unusual) case of an expression such as
+typeof(Foo<>); otherwise, they're closed. There's no such things as an
+open generic type at runtime: all open types are closed by the
+compiler.
+
+//Type targetInterface = typeof(T);
+//if (targetInterface.IsAssignableFrom(typeof(IFabricationInfo)))
+//{
+//    T oFI = new FabInfo();
+//    return oFI as T;
+//}
+//if (targetInterface.IsAssignableFrom(typeof(ICoatingInfo)))
+//{
+//    T oCI = new CoatInfo();
+//    return oCI as T;
+//}
+
+n a C# program, the backing methods are encapsulated within the property or event
+definition. But when compiled to IL, the backing methods present as ordinary meth-
+ods that you can call like any other. This means GetMethods returns property and
+event backing methods alongside ordinary methods. 
+
+To illustrate:
+
+class Test { public int X { get { return 0; } set {} } }
+void Demo()
+{
+  foreach (MethodInfo mi in typeof (Test).GetMethods())
+    Console.Write (mi.Name + "  ");
+}
+
+// OUTPUT:
+get_X  set_X  GetType  ToString  Equals  GetHashCode
+
+You can identify these methods through the IsSpecialName property in MethodInfo.
+IsSpecialName returns true for property, indexer, and event accessors as well as
+operators. It returns false only for conventional C# methods and the Finalize
+method if a finalizer is defined.
+
+Property Property     get_XXX and set_XXX
+Indexer  Property      get_Item and set_Item
+Event	 Event 	      add_XXX and remove_XXX
+
+Each backing method has its own associated MethodInfo object. You can
+access these as follows:
+
+PropertyInfo pi = typeof (Console).GetProperty ("Title");
+MethodInfo getter = pi.GetGetMethod();                   // get_Title
+MethodInfo setter = pi.GetSetMethod();                   // set_Title
+MethodInfo[] both = pi.GetAccessors();                   // Length==2
+
+GetAddMethod and GetRemoveMethod perform a similar job for EventInfo.
+
+Because the Substring method is overloaded, we had to pass an array of
+parameter types to GetMethod to indicate which version we wanted.
+
+The GetParameters method, defined on MethodBase (the base class for
+MethodInfo and ConstructorInfo), returns parameter metadata. We can
+continue our previous ex- ample as follows:
+
+Type type = typeof (string);
+Type[] parameterTypes = { typeof (int) };
+MethodInfo method = type.GetMethod ("Substring", parameterTypes);
+object[] arguments = { 2 };
+object returnValue = method.Invoke ("stamp", arguments);
+Console.WriteLine (returnValue);        
+
+ParameterInfo[] paramList = method.GetParameters();
+foreach (ParameterInfo x in paramList)
+{
+  Console.WriteLine (x.Name);                 // startIndex
+  Console.WriteLine (x.ParameterType);        // System.Int32
+}
+
+To pass ref or out parameters, call MakeByRefType on the type before
+obtaining the method.
+
+int x; 
+bool sucParse = int.TryParse("23", out x);
+
+This can be executed as:
+
+object[] args = {"23", 0};
+Type[] argTypes = {typeof(string), typeof(int).MakeByRefType()};
+MethodInfo mi = typeof(int).GetMethod("TryParse", argTypes);
+bool sucParse = (bool)mi.Invoke(null, args);
+
+Console.WriteLine(sucParse + " " + args[1]); //True 23
+
+The MakeGenericType method converts an unbound into a closed generic
+type. Simply pass in the desired type arguments:
+
+Type unbound = typeof (List<>);
+Type closed = unbound.MakeGenericType (typeof (int));
+
+The GetGenericTypeDefinition method does the opposite:
+
+Type unbound2 = closed.GetGenericTypeDefinition();  // unbound == unbound2
+
+The IsGenericType property returns true if a Type is generic, and the
+IsGenericType Definition property returns true if the generic type is
+unbound. The following tests whether a type is a nullable value type:
+
+Type nullable = typeof (bool?);
+Console.WriteLine (
+  nullable.IsGenericType &&
+  nullable.GetGenericTypeDefinition() == typeof (Nullable<>));   //
+  True
+
+Generic Methods:
+
+Generic methods cannot be invoked directly; the following throws an exception:
+class Program
+{
+  public static T Echo<T> (T x) { return x; }
+  static void Main()
+  {
+    MethodInfo echo = typeof (Program).GetMethod ("Echo");
+    Console.WriteLine (echo.IsGenericMethodDefinition);    // True
+    echo.Invoke (null, new object[] { 123 } );             // Exception
+  }
+}
+
+An extra step is required, which is to call  MakeGenericMethod on  the  MethodInfo,
+specifying concrete generic type arguments. This returns another MethodInfo, which
+you can then invoke as follows:
+
+MethodInfo echo = typeof (Program).GetMethod ("Echo");
+MethodInfo intEcho = echo.MakeGenericMethod (typeof (int));
+Console.WriteLine (intEcho.IsGenericMethodDefinition);            // False
+Console.WriteLine (intEcho.Invoke (null, new object[] { 3 } ));   // 3
+
+    public void m_public() {}
+    internal void m_internal() {}
+    protected void m_protected() {}
+    protected internal void m_protected_public() {}
+
+                              IsAssembly        IsFamilyOrAssembly
+                     IsPublic          IsFamily          IsFamilyAndAssembly
+
+m_public             True     False    False    False    False
+m_internal           False    True     False    False    False
+m_protected          False    False    True     False    False
+m_protected_public   False    False    False    True     False
+
+
+Threading:-
+
+You can test for a thread being block via its ThreadState property:
+bool blocked = (someThread.ThreadState & ThreadState.WaitSleepJoin) !=0;
+
+When a thread blocks or unblocks, the operating system performs a  context
+switch. This incurs an overhead of a few microseconds.
+
+
+Window Services:
+
+1. Define a class that derives from Installer class and set the
+RunInstaller attribute to True.
+
+[RunInstaller(true)]
+public class MyInstaller: Installer {}
+
+2. In the constructor for Installer
+   a. Instantiate the ServiceInstaller and ServiceProcessInstaller
+      	var myServiceInstaller = new ServiceInstaller();
+	var myProcessInstaller = new ServiceProcessInstaller();
+   b. Define values for ServiceInstaller and ServiceProcessInstaller
+        myServiceInstaller.Account = ServiceAccount.LocalSystem;
+   c. Add objects of ServiceInstaller class to the Installers
+      collection in the MyInstaller class.
+      	  this.Installer.AddRange(new Installer[]{
+       		myServiceInstaller, myProcessInstaller });
+   d. Build the project exe - MyInstaller.exe
+   e. Run with InstallUtil
+      	  InstallUtil MyInstaller.exe
+	
+ 
+Q No: 1
+
+You are writing a custom dictionary. The custom-dictionary class is named MyDictionary. You
+
+need to ensure that the dictionary is type safe.
+
+Which code segment should you use?
+
+A. Class MyDictionaryImplements Dictionary(Of String, String)
+
+B. Class MyDictionary Inherits HashTable
+
+C. Class MyDictionary Implements IDictionary
+
+D. Class MyDictionary
+
+End Class
+
+Dim t As New Dictionary(Of String, String)
+
+Dim dict As MyDictionary = CType(t, MyDictionary)
+
+Answer: A
+
+Q No: 2
+
+You write a class named Employee that includes the following code segment.
+
+Private m_EmployeeId As String
+
+Private m_EmployeeName As String
+
+Private m_JobTitleName As String
+
+Public Function GetName() As String
+
+Return m_EmployeeName
+
+End Function
+
+Public Function GetTitle() As String
+
+Return m_JobTitleName
+
+End Function
+
+End Class
+
+You need to expose this class to COM in a type library. The COM interface must also facilitate
+
+forward-compatibility across new versions of the Employee class. You need to choose a method
+
+for generating the COM interface.
+
+What should you do?
+
+A. Add the following attribute to the class definition.<ClassInterface(ClassInterfaceType.None)>
+
+_Public Class Employee
+
+B. Add the following attribute to the class
+
+definition.<ClassInterface(ClassInterfaceType.AutoDual)> _Public Class Employee
+
+C. Add the following attribute to the class definition.<ComVisible(True)> _Public Class Employee
+
+D. Define an interface for the class and add the following attribute to the class
+
+definition.<ClassInterface(ClassInterfaceType.None)> _Public Class EmployeeImplements
+
+IEmployee
+
+Answer: D
+
+Q No: 3
+
+You are developing a custom event handler to automatically print all open documents.
+
+The event handler helps specify the number of copies to be printed. You need to develop a
+
+custom event arguments class to pass as a parameter to the event handler.
+
+Which code segment should you use?
+
+A. public class PrintingArgs {
+
+private int copies;
+
+public PrintingArgs(int numberOfCopies) {
+
+this.copies = numberOfCopies;
+
+}
+
+public int Copies {
+
+get { return this.copies; }
+
+}}
+
+B. public class PrintingArgs : EventArgs {
+
+private int copies;
+
+public PrintingArgs(int numberOfCopies) {
+
+this.copies = numberOfCopies;
+
+}
+
+public int Copies {
+
+get { return this.copies; }
+
+}}
+
+C. public class PrintingArgs {
+
+private EventArgs eventArgs;
+
+public PrintingArgs(EventArgs ea) {
+
+this.eventArgs = ea;
+
+}public EventArgs Args {get { return eventArgs; }}}
+
+D. public class PrintingArgs : EventArgs {
+
+private int copies;}
+
+Answer: B
+
+Q No: 4
+
+You use Reflection to obtain information about a method named MyMethod.
+
+You need to ascertain whether MyMethod is accessible to a derived class. What should you do?
+
+A. Call the IsAssembly property of the MethodInfo class.
+
+B. Call the IsVirtual property of the MethodInfo class.
+
+C. Call the IsStatic property of the MethodInfo class.
+
+D. Call the IsFamily property of the MethodInfo class.
+
+Answer: D
+
+Q No: 5
+
+You are creating a class that uses unmanaged resources. This class
+maintains references to managed resources on other objects. You need
+to ensure that users of this class can explicitly release resources
+when the class instance ceases to be needed. Which three actions
+should you
+
+perform? (Each correct answer presents part of the solution. Choose three.)
+
+A. Define the class such that it inherits from the WeakReference class.
+
+B. Define the class such that it implements the IDisposable interface.
+
+C. Create a class destructor that calls methods on other objects to release the managed
+
+resources.
+
+D. Create a class destructor that releases the unmanaged resources.
+
+E. Create a Dispose method that calls System.GC.Collect to force garbage collection.
+
+F. Create a Dispose method that releases unmanaged resources and calls
+methods on other objects to release the managed resources.
+
+Answer: B, D, F
+
+Q No: 6
+
+You are working on a debug build of an application.
+
+You need to find the line of code that caused an exception to be
+thrown. Which property of the
+
+Exception class should you use to achieve this goal?
+
+A. Data
+
+B. Message
+
+C. StackTrace
+
+D. Source
+
+Answer: C
+
+Q No: 7
+
+You need to write a code segment that performs the following tasks:
+
+* Retrieves the name of each paused service.
+
+* Passes the name to the Add method of Collection1.
+
+Which code segment should you use?
+
+A. ManagementObjectSearcher^ searcher =
+
+gcnew ManagementObjectSearcher(
+
+"Select * from Win32_Service where State = 'Paused'");for each (ManagementObject^
+
+svc in searcher->Get()) {
+
+Collection1->Add(svc["DisplayName"]);}
+
+B. ManagementObjectSearcher^ searcher =
+
+gcnew ManagementObjectSearcher(
+
+"Select * from Win32_Service","State = 'Paused'");for each (ManagementObject^ svc in
+
+searcher->Get()) {
+
+Collection1->Add(svc["DisplayName"]);}
+
+C. ManagementObjectSearcher^ searcher =
+
+gcnew ManagementObjectSearcher(
+
+"Select * from Win32_Service");for each (ManagementObject^ svc in searcher->Get()) {
+
+if ((String^) svc["State"] == "'Paused'") {
+
+Collection1->Add(svc["DisplayName"]);
+
+}}
+
+D. ManagementObjectSearcher^ searcher =
+
+gcnew ManagementObjectSearcher();searcher->Scope = gcnew
+
+ManagementScope("Win32_Service");for each (ManagementObject^ svc in
+
+searcher->Get()) {
+
+if ((String^)svc["State"] == "Paused") {
+
+Collection1->Add(svc["DisplayName"]);
+
+}}
+
+Answer: A
+
+Q No: 8
+
+You need to serialize an object of type List(Of Integer) in a binary
+format. The object is named data. Which code segment should you use?
+
+A. Dim formatter As New BinaryFormatter()Dim ms As New
+
+MemoryStream()formatter.Serialize(ms, data)
+
+B. Dim formatter As New BinaryFormatter()Dim ms As New MemoryStream() For i As
+
+Integer = 1 To 20
+
+formatter.Serialize(ms, data(i - 1))Next
+
+C. Dim formatter As New BinaryFormatter()Dim buffer As New Byte(data.Count) {}Dim ms As
+
+New MemoryStream(buffer, True)formatter.Serialize(ms, data)
+
+D. Dim formatter As New BinaryFormatter()Dim ms As New MemoryStream()While
+
+ms.CanRead formatter.Serialize(ms, data)End While\
+
+Answer: A
+
+Q No: 9
+
+You are developing an application that dynamically loads assemblies
+from an application directory. You need to write a code segment that
+loads an assembly named Company1.dll into the current application
+domain. Which code segment should you use?
+
+A. AppDomain^ domain = AppDomain::CurrentDomain;String^ myPath =
+
+Path::Combine(domain->BaseDirectory,
+
+"Company1.dll");Assembly^ assm = Assembly::LoadFrom(myPath);
+
+B. AppDomain ^ domain = AppDomain::CurrentDomain;String^ myPath =
+
+Path::Combine(domain->BaseDirectory,
+
+"Company1.dll");Assembly^ assm = Assembly::Load(myPath);
+
+C.AppDomain^ domain = AppDomain::CurrentDomain;String^ myPath =
+
+Path::Combine(domain->DynamicDirectory,
+
+"Company1.dll");Assembly^ assm = AppDomain::CurrentDomain::Load(myPath);
+
+D. AppDomain^ domain = AppDomain::CurrentDomain;Assembly^ assm =
+
+Domain->GetData("Company1.dll");
+
+Answer: A
+
+Q No: 10
+
+You are testing a newly developed method named PersistToDB. This
+method accepts a parameter of type EventLogEntry. This method does not
+return a value. You need to create a code segment that helps you to
+test the method. The code segment must read entries from the
+application log of local computers and then pass the entries on to the
+PersistToDB method.  The code block must pass only events of type
+Error or Warning from the source MySource to the PersistToDB method.
+
+Which code segment should you use?
+
+A. EventLog myLog = new EventLog("Application", ".");
+
+foreach (EventLogEntry entry in myLog.Entries)
+{
+if (entry.Source == "MySource")
+{
+PersistToDB(entry);
+}
+}
+
+B. EventLog myLog = new EventLog("Application", ".");
+
+myLog.Source = "MySource";
+
+foreach (EventLogEntry entry in myLog.Entries)
+{
+if (entry.EntryType == (EventLogEntryType.Error &
+EventLogEntryType.Warning))
+{
+
+PersistToDB(entry); } }
+
+C. EventLog myLog = new EventLog("Application", ".");
+foreach (EventLogEntry entry in myLog.Entries)
+{
+
+if (entry.Source == "MySource")
+{
+if (entry.EntryType == EventLogEntryType.Error ||
+entry.EntryType == EventLogEntryType.Warning)
+{
+PersistToDB(entry);
+}
+}
+}
+
+D. EventLog myLog = new EventLog("Application", ".");
+
+myLog.Source = "MySource";
+
+foreach (EventLogEntry entry in myLog.Entries)
+{
+if (entry.EntryType == EventLogEntryType.Error ||
+entry.EntryType == EventLogEntryType.Warning)
+{
+PersistToDB(entry);
+}
+
+Answer: C
+
+Q No: 11
+
+You are developing a class library. Portions of your code need to
+access system environment variables.You need to force a runtime
+SecurityException only when callers that are higher in the call stack
+do not have the necessary permissions.
+
+Which call method should you use?
+
+A. Set->Demand();
+
+B. Set->Assert();
+
+C. Set->PermitOnly();
+
+D. Set->Deny();
+
+Answer: A
+
+

@@ -1,0 +1,28 @@
+Reporting Services
+-------------------
+
+The "Every Other Page Is Blank" Feature 
+Many Reporting Services users ask this question:
+
+"I'm rendering to a physical page format (PDF, Image, Print) and for some reason a blank page gets inserted between all of the other pages in the report.  Thank you, Reporting Services, for the free pages.  It's a charming feature, but paper ain't free and I'm getting paper cuts pulling out every other blank page after it's printed.  How do I make it stop?!"
+
+To which I reply:
+
+This is almost always caused by the Body of your report being too wide for your page.  Make sure that the Width of the Body is less than the physical page size, less the margins.  For those of you who are into the math thing, make sure that:
+
+Body Width <= Page Width - (Left Margin + Right Margin)
+
+For physical page renderers, it's important to keep in mind the concept of Usable Area.  The Usable Area is the amount of space left on a page for your report to be drawn after reserving space for margins, headers and footers, and column spacing (for multi-column reports).
+
+Horizontal usable area: 
+
+X = Page.Width - (Left Margin + Right Margin + Column Spacing)
+
+Vertical usable area: 
+
+Y = Page.Height - (Top Margin + Bottom Margin + Header Height + Footer Height)
+
+Any time objects on your report (including the Body itself) extend past the usable area either because they are defined like that or because they grow at runtime, the physical page renderers have no choice but to break onto a new page.
+
+Let me know if there are more questions about this.
+
