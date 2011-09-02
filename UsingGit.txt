@@ -3,7 +3,7 @@ Using GIT
 
 The sequence for reverting to the last committed version is:
 
-	- If modified & then added to staing area:
+	- If modified & then added to staging area:
 		$ git reset HEAD filename
 		$ git checkout filename
 	
