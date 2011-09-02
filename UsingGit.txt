@@ -1,6 +1,14 @@
 Using GIT
 ---------
 
+The sequence for reverting to the last committed version is:
+
+	- If modified & then added to staing area:
+		$ git reset HEAD filename
+		$ git checkout filename
+	
+	- If only modified then:
+		$ git checkout filename
 
 Git Links
 ---------
