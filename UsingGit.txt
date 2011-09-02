@@ -35,7 +35,10 @@ sta = stash
 # Office Temp Files
 ~$*
 
-
+Setup a global excludes files:
+	git config --global core.excludefile ~/.gitignore
+	
+	
 In the prompt, type “git init”:
 Then issue "git add ."
 
