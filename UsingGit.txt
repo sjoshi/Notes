@@ -1,6 +1,8 @@
 Using GIT
 ---------
 
+
+
 Git Links
 ---------
 
@@ -69,4 +71,4 @@ Now that we’re on the refactor branch, let’s sequester the print statement i
 And commit:
 This command will add and commit at the same time with a message
 
-$ git ci -a -m ‘factor print into a subroutine’;
+$ git commit -a -m ‘factor print into a subroutine’;
