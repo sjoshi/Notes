@@ -13,7 +13,7 @@ The sequence for reverting to the last committed version is:
 Git Links
 ---------
 
-http://www.lostechies.com/blogs/jason_meridth/archive/2009/06/01/git-for-windows-developers-git-series-part-1.aspx
+http://lostechies.com/jasonmeridth/2009/06/01/git-for-windows-developers-git-series-part-1/
 
 http://chrisjean.com/2009/11/12/great-tutorial-on-merging-with-git/
 
