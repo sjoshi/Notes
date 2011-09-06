@@ -1,0 +1,196 @@
+SQL BACKUP-RECOVERY
+====================
+Pg 106
+
+FULL BACKUP:-
+  Regardless of recovery mode used, you need to start with a full backup. Both 
+log backups and differential backups require a full backup to startwith.
+  Creating a full backup is T-SQL is 
+
+    BACKUP DATABASE AdventureWorks TO DISK='C:\Data\AW.bak' WITH INIT
+  
+  This will backup without appending to the file, and as such the file is 
+overwritten each time.
+  
+  Mirrored backups are a new feature in SQL Server 2005 that allow you to write 
+the same backup file to multiple locations,
+  The command to create a mirrored backup is similar (almost too similar) to 
+creating a striped backup:
+  
+    BACKUP DATABASE AdventureWorks TO DISK='D:\data\AW.bak'
+    MIRROR TO DISK = 'E:\data\AW.bak'
+    MIRROR TO DISK = 'F:\data\AW.bak'
+    WITH INIT,CHECKSUM,CONTINUE_ON_ERROR
+
+
+LOG BACKUP:-
+  In Full Recovery or Bulk Logged Recovery mode, log backups are essential not 
+only for recovery purposes but also to manage the size of the active 
+transaction log. If never backed up the transaction log will continue to grow 
+untill all disk space is used.
+
+    BACKUP LOG AdventureWorks_Log to DISK='D:\Data\AW.trn'
+
+
+DIFFERENTIAL BACKUP:-
+  Differential backups  are intended to decrease recovery time.
+  
+  BACKUP DATABASE AdventureWorks TO DISK='C:\Data\Aw.dif' WITH DIFFERNTIAL,     
+                         
+    INIT
+  
+  The differential backup contains all the changes since the last Full Backup. A 
+differential backup is tied directly to a specific fullbackup. So performing 
+an ad-hoc full backup outside the normal schedule can render a differential 
+backup useless. 
+
+AVAILABILTY DURING RECOVERY:-
+  Normally as recovery occurs the database is unavailable to users. With 
+SQLServer 2005 Ent edition, a database is made available immediately after 
+committed transactions are rolled forward. The database is available online to 
+users, while the rollback proceeds.
+  Periodically the database forces commited transactions to be written to the 
+database. The proces is referred to as Checkpoint which is determined 
+dynamically by the database since the recovery interval is set to 0.
+    
+    Sp_configure 'Show Advanced Options' ,1
+    Sp_configure 'Recovery Interval' , 5
+    RECONFIGURE WITH OVERRIDE
+    Sp_configure 'Show Advanced Options',0
+
+This example changes the checkpoint process to occur every five minutes.
+
+RESTORE HEADER ONLY:-
+  The command returns all the backups contained on the device referenced; wether 
+it is a simple file that contains more than one individual backup, a logical 
+backup device or a tape volume. To view an individual backup use the WITH FILE 
+or WITH MEDIANAME option.
+  
+  LSNs also make point-in-time restore possible. As long as there is an 
+uninterrupted string of sequential LSN numbers and the database is in Full 
+Recovery mode, you can recover the database upto the last committed 
+transaction.
+   
+RESTORING WITH FAST FILE INITIALIZATION:-
+  When restoring a large to a new location, simply creating the data files can 
+be time consuming since Windows it initializing the file and setting all the 
+bits to 0.
+   To take advantage of instant file initialization, you must give the SQLServer 
+service account the "Perform volume maintenance tasks" user right which is 
+Local Policies->User Rights Assignment.        
+   
+RESTORING DIFFERENTIAL BACKUPS IN SIMPLE RECOVERY MODE:-
+   You can restore differntial backups in Simple Recovery mode. A differential 
+backup is simply data pages that have changed since the last full backup. No 
+transaction logs are needed
+   
+  RESTORE DATABASE AdventureWorks
+  FROM DISK='D:\data\AW.bak'
+  WITH NORECOVERY   --We are not yet done
+  
+  RESTORE DATABASE AdventureWorks
+  FROM DISK='D:\data\AW.diff' --You need the most current one only
+  WITH NORECOVERY
+  
+  To bring it online, you just need to perform a recovery.
+  
+  RESTORE DATABASE AdventureWorks
+  WITH RECOVERY
+  
+RESTORING TO POINT IN TIME:-
+  
+  RESTORE DATABASE AdventureWorks
+  FROM DISK='D:\SQLBackups\AWFull.bak'
+  WITH NORECOVERY -- We aren't done with our Restore process
+  
+  RESTORE LOG AdventureWorks
+  FROM DISK='D:\SQLBackups\AWLog1.bak"
+  WITH NORECOVERY
+  
+  RESTORE LOG AdventureWorks
+  FROM DISK='D:\SQLBackups\AWLog2.bak'
+  WITH RECOVERY, STOPAT 'Jan 10, 2006 3:10pm'
+  
+The previous example restores a full backup and two transaction logs and stops 
+at 3:10 p.m. on January 10, 2006. Note that the STOPAT clause appears after the 
+RECOVERY clause.
+   
+TempDB:-
+  To list the logical name of database files, you can query SYS.MASTER_FILES for 
+the name column. To move the tempdb, you have to use th ALTER database 
+command.
+  
+  ALTER DATABASE tempdb
+  MODIFY FILE (NAME=tempdv, FILENAME='C:\Program Files\Microsoft SQL 
+Server\MSSQL.1\MSSQL\DATA\tempdb.mdf')
+  
+  ALTER DATABASE templog
+  MODIFY FILE(NAME=templog FILENAME='C:\Program Files\Microsoft SQL 
+Server\MSSQL.1\MSSQL\DATA\templog.ldf')
+  
+  Once you run this code, you need to stop and restart SQL Server.
+  
+RESOURCE DATABASE:-
+
+The size of the master databae is smaller than in SQL2000 since the code used to 
+generate pseudotables and system views in now located in a hidden system 
+database called RESOURCE.
+
+This database does not appear in SQLStudio, but you can see the two files, 
+msssqlsystemresource.mdf and mssqlsystemresource.ldf which can be copied and 
+pasted in a new location.
+Backing the Resource database is critical, since SQLServer won't start without 
+these databases in the same location as the master database.
+
+
+FILEGROUPS:-
+  A database is made up of two or more files. At minimum, it must include one 
+primary datafile (normally with .mdf ext) and one transaction log file (.ldf). 
+If more space is needed you may add secondary data files to the database 
+(.ndf). A database may also contain one or more filegroups which contain one 
+or more datafile (.mdf and ..ndf) 
+  
+
+LOG SHIPPING:	
+	You enable log shipping by creating a log backup job on the Primary server 
+(log shipping works in Full Recovery Mode) and placing those backup files in 
+a location accessible over a network.
+
+	On the secondary server, you restore a full backup of the database but leave 
+it in Standby mode, ready for log restores. You can then create a job to 
+pick up the Primary server's transaction logs, copy them locally, and then 
+restore them while leacving the database in standby mode.
+
+	The primary server requires almost no additional overhead. You should 
+already be backin the transaction logs and the secondary server intiates the 
+file copy.
+
+	1.	Create a central location for each server to use - Share/FTP/HTTP
+	2.	Create a log backup on the primary server - If the shared location is on 
+	the primary server, simply write to that directory otherwise, create a 	
+	second job to the SQLAgent that copies the log backups to the 			
+	appropriate server.
+	3.	Create a restore job on the secondary server. Do not recover the 		
+	database.
+
+	Log shipping is a bit optimistic when it comes to failover vs failback. In 
+other words, it assumes that failover will never occur. Fast failover is 
+more of a high-availability goal than it is dis-aster recovery. The primary 
+purpose of log shipping is the protection of data from local disaster. Don?t 
+rely on log shipping if your primary need is one of quick failover. Database 
+mirroring, covered in Chapter 8, is much better suited for that purpose.
+
+	4.	Once you are confident that all the transaction log backups are restored 
+	WITH NO RECOVERY to the standby server, then only recover the database.
+		
+			RESTORE DATABASE AdventureWorks WITH REOVERY;
+
+	When using the rename/IP-change technique, you better be sure to change the 
+internal name of the SQL Server itself. SQL Server 2000 and 2005 will 
+continue to run almost everything without changing that internal server 
+name. However, certain functions, such as replication, will display odd 
+behavior. Changing the name is simple, and I suggest always adding the 
+process to any disaster recovery documentation: 
+
+		Sp_dropserver <<oldservername>> 
+		Sp_addserver <<newservername>>, 'local'
