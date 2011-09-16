@@ -1,0 +1,10 @@
+FLEX TIPS
+==========
+
+Dont worry about the question, I found the answer for Fast packaging at adobe
+
+Just in case someone is looking for it
+
+http://help.adobe.com/en_US/flex/mobileapps/WSa8161994b114d624-33657d5912b7ab2d73b-7fe3.html#WSe4e4b720da9dedb5-7f7483ed12ee0faf40f-7fff
+MVVM - http://riarockstars.com/2011/03/16/presentation-model-and-multiple-screens-part-1/
+
