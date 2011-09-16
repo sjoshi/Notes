@@ -3,12 +3,18 @@ Using GIT
 
 The sequence for reverting to the last committed version is:
 
+	- If already commited:
+		$ git revert HEAD 	//Revert to last commited version
+		$ git revert HEAD^	//Revert to next-to-last revision
+		
 	- If modified & then added to staging area:
 		$ git reset HEAD filename
 		$ git checkout filename
 	
 	- If only modified then:
-		$ git checkout filename
+		$ git reset --hard HEAD  	//Replaces everything
+		$ git checkout filename		//Reverts only one file
+		
 
 Git Links
 ---------

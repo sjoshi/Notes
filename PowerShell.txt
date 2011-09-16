@@ -1,5 +1,16 @@
 PowerShell
 ==========
+UPDATE:
+i found another solution. ipv6 does not need to be disabled:
+
+open a command shell as an Administrator
+type: netsh
+type: interface
+type: portproxy
+type: add v6tov4 listenport=80 connectport=80
+
+port is your web server port of course
+
 
 LINKS:-
 http://support.microsoft.com/kb/968929
